@@ -299,26 +299,24 @@ async def monitor_groups(
         "->",
         update.chat_member.new_chat_member.status
     )
-
-
     chat_id = update.chat_member.chat.id
 
 
     if chat_id not in (
         MAIN_GROUP_1_ID,
         MAIN_GROUP_2_ID
-# MAIN GROUP LOCK
-async def monitor_groups(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
-
-    print("MAIN GROUP UPDATE RECEIVED")
-
-    if update.chat_member is None:
+    ):
         return
 
 
+    user = update.chat_member.new_chat_member.user
+
+
+    if user.is_bot:
+        return
+
+
+    new_status = update.chat_member.new_chat_member.status
         chat_id = update.chat_member.chat.id
 
 
