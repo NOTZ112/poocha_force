@@ -181,45 +181,41 @@ async def check_access(
 
 
 
+    # CREATE NEW INVITE
 
-    # CREATE NEW INVITE EVERY TIME
-
-await clear_invite(
-    user.id
-)
-
-invite = await context.bot.create_chat_invite_link(
-    chat_id=SECRET_GROUP_ID,
-    member_limit=1
-)
+    await clear_invite(
+        user.id
+    )
 
 
-await save_invite(
-    user.id,
-    invite.invite_link
-)
+    invite = await context.bot.create_chat_invite_link(
+        chat_id=SECRET_GROUP_ID,
+        member_limit=1
+    )
 
 
-keyboard = InlineKeyboardMarkup(
-    [
+    await save_invite(
+        user.id,
+        invite.invite_link
+    )
+
+
+    keyboard = InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(
-                "🔐 Join Secret Group",
-                url=invite.invite_link
-            )
+            [
+                InlineKeyboardButton(
+                    "🔐 Join Secret Group",
+                    url=invite.invite_link
+                )
+            ]
         ]
-    ]
-)
+    )
 
 
-await query.message.reply_text(
-    SUCCESS_TEXT,
-    reply_markup=keyboard
-)
-
-
-
-
+    await query.message.reply_text(
+        SUCCESS_TEXT,
+        reply_markup=keyboard
+    )
 
     # CREATE NEW INVITE
 
