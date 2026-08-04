@@ -283,61 +283,91 @@ async def monitor_groups(
     if update.chat_member is None:
         return
 
+
     print(
         update.chat_member.old_chat_member.status,
         "->",
         update.chat_member.new_chat_member.status
     )
 
+
     chat_id = update.chat_member.chat.id
+
+
+    if chat_id not in (
+        MAIN_GROUP_1_ID,
+        MAIN_GROUP_2_ID
+    ):
+        return
+
 
     user = update.chat_member.new_chat_member.user
 
+
+    if user.is_bot:
+        return
+
+
     new_status = update.chat_member.new_chat_member.status
 
-    if chat_id in [
-        MAIN_GROUP_1_ID,
-        MAIN_GROUP_2_ID
-    ]:
 
-        if new_status == ChatMemberStatus.LEFT:
-
-            try:
-
-                await context.bot.ban_chat_member(
-                    chat_id=SECRET_GROUP_ID,
-                    user_id=user.id,
-                    revoke_messages=False
-                )
-
-                await context.bot.unban_chat_member(
-                    chat_id=SECRET_GROUP_ID,
-                    user_id=user.id
-                )
-
-            except Exception:
-                pass
+    # User left main group
+    if new_status == ChatMemberStatus.LEFT:
 
 
-            await update_secret(
-                user.id,
-                False
+        try:
+
+            await context.bot.ban_chat_member(
+                chat_id=SECRET_GROUP_ID,
+                user_id=user.id,
+                revoke_messages=False
+            )
+
+            await context.bot.unban_chat_member(
+                chat_id=SECRET_GROUP_ID,
+                user_id=user.id
+            )
+
+            print(
+                "Removed from secret channel:",
+                user.id
             )
 
 
-            try:
+        except Exception as e:
 
-                await context.bot.send_message(
-                    chat_id=user.id,
-                    text=(
-                        "⚠️ WARNING\n\n"
-                        "നീ Main Group വിട്ടതോടെ Secret Channel-ലേക്കുള്ള Access റദ്ദാക്കി.\n\n"
-                        "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം Bot-ൽ Check Access അമർത്തുക."
-                    )
+            print(
+                "Secret remove error:",
+                e
+            )
+
+
+        await update_secret(
+            user.id,
+            False
+        )
+
+
+        await clear_invite(
+            user.id
+        )
+
+
+        try:
+
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=(
+                    "⚠️ WARNING\n\n"
+                    "നീ Main Group വിട്ടതോടെ Secret Channel-ലേക്കുള്ള Access റദ്ദാക്കി.\n\n"
+                    "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം Bot-ൽ Check Access അമർത്തിയാൽ മാത്രമേ പുതിയ Invite ലഭിക്കൂ."
                 )
+            )
 
-            except Exception:
-                pass
+
+        except Exception:
+
+            pass
 
         # Only main groups
     if chat_id not in (
