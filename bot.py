@@ -185,3 +185,68 @@ async def check_access(
     except Exception:
 
         return False
+async def monitor_groups(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.chat_member is None:
+        return
+
+    chat = update.chat_member.chat
+
+    if chat.id not in (
+        MAIN_GROUP_1_ID,
+        MAIN_GROUP_2_ID
+    ):
+        return
+
+    user = update.chat_member.new_chat_member.user
+
+    main1 = await is_member(
+        context.bot,
+        MAIN_GROUP_1_ID,
+        user.id
+    )
+
+    main2 = await is_member(
+        context.bot,
+        MAIN_GROUP_2_ID,
+        user.id
+    )
+
+    if main1 and main2:
+        return
+
+    try:
+        await context.bot.ban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id
+        )
+
+        await update_secret(user.id, False)
+        await clear_invite(user.id)
+        await set_banned(user.id, True)
+
+    except Exception as e:
+        print(f"Ban Error: {e}")
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "👤 Owner",
+                    url=f"https://t.me/{OWNER_USERNAME}"
+                )
+            ]
+        ]
+    )
+
+    try:
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=REMOVED_TEXT,
+            reply_markup=keyboard
+        )
+    except Exception:
+        pass
