@@ -56,7 +56,117 @@ async def start(
             ]
         ]
     )
+async def check_access(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+
+    await add_user(user.id)
+
+    main1 = await is_member(
+        context.bot,
+        MAIN_GROUP_1_ID,
+        user.id
+    )
+
+    main2 = await is_member(
+        context.bot,
+        MAIN_GROUP_2_ID,
+        user.id
+    )
+
+    if not main1 or not main2:
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Main Group 1",
+                        url=MAIN_GROUP_1_LINK
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Main Group 2",
+                        url=MAIN_GROUP_2_LINK
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "👤 Owner",
+                        url=f"https://t.me/{OWNER_USERNAME}"
+                    )
+                ]
+            ]
+        )
+
+        await query.message.reply_text(
+            FAILED_TEXT,
+            reply_markup=keyboard
+        )
+
+        return
+
+    data = await get_user(user.id)
+
+    if data.get("secret"):
+
+        await query.message.reply_text(
+            "✅ You are already in the Secret Group."
+        )
+
+        return
+
+    if data.get("invite_link") and not data.get("invite_used"):
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔐 Join Secret Group",
+                        url=data["invite_link"]
+                    )
+                ]
+            ]
+        )
+
+        await query.message.reply_text(
+            "♻️ Your previous invite link is still active.",
+            reply_markup=keyboard
+        )
+
+        return
+
+    invite = await context.bot.create_chat_invite_link(
+        chat_id=SECRET_GROUP_ID,
+        member_limit=1
+    )
+
+    await save_invite(
+        user.id,
+        invite.invite_link
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🔐 Join Secret Group",
+                    url=invite.invite_link
+                )
+            ]
+        ]
+    )
+
+    await query.message.reply_text(
+        SUCCESS_TEXT,
+        reply_markup=keyboard
+        )
     await update.message.reply_text(
         START_TEXT,
         reply_markup=keyboard
