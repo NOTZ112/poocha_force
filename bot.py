@@ -245,47 +245,34 @@ async def secret_group_monitor(
     if update.chat_member is None:
         return
 
-
     chat_id = update.chat_member.chat.id
-
 
     if chat_id != SECRET_GROUP_ID:
         return
 
-
-
     member = update.chat_member.new_chat_member
 
-
-print(
-    "SECRET UPDATE:",
-    member.user.id,
-    member.status
-)
-
-
-if member.status in (
-    ChatMemberStatus.MEMBER,
-    ChatMemberStatus.ADMINISTRATOR
-):
-
-
-    user = member.user
-
-
-    await update_secret(
-        user.id,
-        True
-    )
-
-
     print(
-        f"Secret Access Added : {user.id}"
+        "SECRET UPDATE:",
+        member.user.id,
+        member.status
     )
 
+    if member.status in (
+        ChatMemberStatus.MEMBER,
+        ChatMemberStatus.ADMINISTRATOR
+    ):
 
+        user = member.user
 
+        await update_secret(
+            user.id,
+            True
+        )
 
+        print(
+            f"Secret Access Added : {user.id}"
+        )
 
 
 
