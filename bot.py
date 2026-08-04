@@ -294,6 +294,54 @@ async def monitor_groups(
 
     chat_id = update.chat_member.chat.id
 
+        user = update.chat_member.new_chat_member.user
+
+    new_status = update.chat_member.new_chat_member.status
+
+
+    if chat_id in [
+        MAIN_GROUP_1_ID,
+        MAIN_GROUP_2_ID
+    ]:
+
+        if new_status == ChatMemberStatus.LEFT:
+
+            try:
+
+                await context.bot.ban_chat_member(
+                    chat_id=SECRET_GROUP_ID,
+                    user_id=user.id,
+                    revoke_messages=False
+                )
+
+                await context.bot.unban_chat_member(
+                    chat_id=SECRET_GROUP_ID,
+                    user_id=user.id
+                )
+
+            except Exception:
+                pass
+
+
+            await update_secret(
+                user.id,
+                False
+            )
+
+
+            try:
+
+                await context.bot.send_message(
+                    chat_id=user.id,
+                    text=(
+                        "⚠️ WARNING\n\n"
+                        "നീ Main Group വിട്ടതോടെ Secret Channel-ലേക്കുള്ള Access റദ്ദാക്കി.\n\n"
+                        "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം Bot-ൽ Check Access അമർത്തുക."
+                    )
+                )
+
+            except Exception:
+                pass
 
     # Only main groups
     if chat_id not in (
