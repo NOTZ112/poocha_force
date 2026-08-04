@@ -386,7 +386,52 @@ async def monitor_groups(
         )
 
 
+# =========================
+# BROADCAST START
+# =========================
 
+def is_admin(user_id):
+    return user_id in ADMIN_IDS
+
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    if not is_admin(update.effective_user.id):
+        return
+
+    if not update.message.reply_to_message:
+        await update.message.reply_text(
+            "Reply to a message and use /broadcast"
+        )
+        return
+
+    users = await get_all_users()
+
+    sent = 0
+    failed = 0
+
+    status = await update.message.reply_text(
+        "Broadcasting..."
+    )
+
+    for user_id in users:
+        try:
+            await context.bot.copy_message(
+                chat_id=user_id,
+                from_chat_id=update.effective_chat.id,
+                message_id=update.message.reply_to_message.message_id
+            )
+            sent += 1
+        except:
+            failed += 1
+
+    await status.edit_text(
+        f"Done\n\nSent : {sent}\nFailed : {failed}"
+    )
+
+# =========================
+# BROADCAST END
+# =========================
 
 
 
@@ -402,7 +447,12 @@ app.add_handler(
     )
 )
 
-
+app.add_handler(
+    CommandHandler(
+        "broadcast",
+        broadcast
+    )
+)
 
 app.add_handler(
     CallbackQueryHandler(
