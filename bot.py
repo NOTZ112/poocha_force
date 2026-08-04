@@ -173,11 +173,28 @@ async def check_access(
 
     if data and data.get("secret"):
 
-        await query.message.reply_text(
-            "✅ Secret Group access already active."
+        still_member = await is_member(
+            context.bot,
+            SECRET_GROUP_ID,
+            user.id
         )
 
-        return
+
+        if still_member:
+
+            await query.message.reply_text(
+                "✅ Secret Group access already active."
+            )
+
+            return
+
+
+        else:
+
+            await update_secret(
+                user.id,
+                False
+            )
 
 
 
@@ -217,46 +234,7 @@ async def check_access(
         reply_markup=keyboard
     )
 
-    # CREATE NEW INVITE
-
-    invite = await context.bot.create_chat_invite_link(
-        chat_id=SECRET_GROUP_ID,
-        member_limit=1
-    )
-
-
-
-    await save_invite(
-        user.id,
-        invite.invite_link
-    )
-
-
-
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "🔐 Join Secret Group",
-                    url=invite.invite_link
-                )
-            ]
-        ]
-    )
-
-
-
-    await query.message.reply_text(
-        SUCCESS_TEXT,
-        reply_markup=keyboard
-    )
-
-
-
-
-
-
-
+    
 
 # SECRET GROUP JOIN SAVE
 async def secret_group_monitor(
@@ -279,25 +257,31 @@ async def secret_group_monitor(
     member = update.chat_member.new_chat_member
 
 
-
-    if member.status in (
-        ChatMemberStatus.MEMBER,
-        ChatMemberStatus.ADMINISTRATOR
-    ):
-
-
-        user = member.user
+print(
+    "SECRET UPDATE:",
+    member.user.id,
+    member.status
+)
 
 
-        await update_secret(
-            user.id,
-            True
-        )
+if member.status in (
+    ChatMemberStatus.MEMBER,
+    ChatMemberStatus.ADMINISTRATOR
+):
 
 
-        print(
-            f"Secret Access Added : {user.id}"
-        )
+    user = member.user
+
+
+    await update_secret(
+        user.id,
+        True
+    )
+
+
+    print(
+        f"Secret Access Added : {user.id}"
+    )
 
 
 
