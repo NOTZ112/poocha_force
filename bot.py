@@ -307,10 +307,18 @@ async def monitor_groups(
         return
 
 
+    # DEBUG CHECK
+    print(
+        update.chat_member.old_chat_member.status,
+        "->",
+        update.chat_member.new_chat_member.status
+    )
+
 
     chat_id = update.chat_member.chat.id
 
 
+    # Only main groups
     if chat_id not in (
         MAIN_GROUP_1_ID,
         MAIN_GROUP_2_ID
@@ -319,8 +327,7 @@ async def monitor_groups(
 
 
 
-    user = update.chat_member.from_user
-
+    user = update.chat_member.new_chat_member.user
 
 
     if user.is_bot:
@@ -328,7 +335,7 @@ async def monitor_groups(
 
 
 
-
+    # Check both main groups
     main1 = await is_member(
         context.bot,
         MAIN_GROUP_1_ID,
@@ -343,9 +350,13 @@ async def monitor_groups(
     )
 
 
+    # User still in both groups
     if main1 and main2:
         return
 
+
+
+    # Remove from secret group
     try:
 
         await context.bot.ban_chat_member(
@@ -354,24 +365,29 @@ async def monitor_groups(
             revoke_messages=False
         )
 
+
         await context.bot.unban_chat_member(
             chat_id=SECRET_GROUP_ID,
             user_id=user.id,
             only_if_banned=True
         )
 
+
         await update_secret(
             user.id,
             False
         )
 
+
         await clear_invite(
             user.id
         )
 
+
         print(
             f"Removed From Secret : {user.id}"
         )
+
 
     except Exception as e:
 
