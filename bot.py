@@ -264,7 +264,15 @@ async def secret_group_monitor(
     ):
 
         user = member.user
+    await update_secret(
+        user.id,
+        True
+    )
 
+    print(
+        "Secret Access Added:",
+        user.id
+    )
         
         print(
             f"Secret Access Added : {user.id}"
