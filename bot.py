@@ -319,7 +319,7 @@ async def monitor_groups(
         return
 
 
-    chat_id = update.chat_member.chat.id
+        chat_id = update.chat_member.chat.id
 
 
     if chat_id not in (
@@ -330,7 +330,6 @@ async def monitor_groups(
 
 
     user = update.chat_member.new_chat_member.user
-
 
     if user.is_bot:
         return
