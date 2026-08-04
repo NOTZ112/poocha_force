@@ -283,21 +283,17 @@ async def monitor_groups(
     if update.chat_member is None:
         return
 
-
-    # DEBUG CHECK
     print(
         update.chat_member.old_chat_member.status,
         "->",
         update.chat_member.new_chat_member.status
     )
 
-
     chat_id = update.chat_member.chat.id
 
-        user = update.chat_member.new_chat_member.user
+    user = update.chat_member.new_chat_member.user
 
     new_status = update.chat_member.new_chat_member.status
-
 
     if chat_id in [
         MAIN_GROUP_1_ID,
