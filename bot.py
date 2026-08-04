@@ -327,7 +327,7 @@ async def monitor_groups(
 
 
 
-    user = update.chat_member.new_chat_member.user
+    user = update.chat_member.from_user
 
 
     if user.is_bot:
