@@ -184,7 +184,7 @@ async def check_access(
 
     # OLD INVITE CHECK
 
-    if data and data.get("invite_link"):
+    if data and data.get("invite_link") and data.get("secret"):
 
         keyboard = InlineKeyboardMarkup(
             [
