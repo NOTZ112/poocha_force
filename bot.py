@@ -265,11 +265,7 @@ async def secret_group_monitor(
 
         user = member.user
 
-        await update_secret(
-            user.id,
-            True
-        )
-
+        
         print(
             f"Secret Access Added : {user.id}"
         )
@@ -360,23 +356,32 @@ async def monitor_groups(
         )
 
         await update_secret(
-            user.id,
-            False
-        )
+    user.id,
+    False
+)
 
-        await clear_invite(
-            user.id
-        )
+try:
 
-        print(
-            f"Removed From Secret Channel: {user.id}"
+    await context.bot.send_message(
+        chat_id=user.id,
+        text=(
+            "⚠️ WARNING\n\n"
+            "നീ Main Group വിട്ടതോടെ Secret Channel-ലേക്കുള്ള നിന്റെ Access ഉടൻ റദ്ദാക്കി.\n\n"
+            "ഇവിടെ shortcuts ഒന്നും നടക്കില്ല.\n\n"
+            "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം Bot-ൽ 'Check Access' അമർത്തിയാൽ മാത്രമേ പുതിയ Invite ലഭിക്കൂ."
         )
+    )
 
-    except Exception as e:
+except Exception:
+    pass
 
-        print(
-            f"Remove Error: {e}"
-        )
+await clear_invite(
+    user.id
+)
+
+print(
+    f"Removed From Secret Channel: {user.id}"
+)
 # =========================
 # BROADCAST START
 # =========================
