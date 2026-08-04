@@ -308,7 +308,7 @@ async def monitor_groups(
 
 
 
-    user = update.chat_member.from_user
+    user = update.chat_member.new_chat_member.user
 
 
     if user.is_bot:
@@ -338,43 +338,48 @@ async def monitor_groups(
 
 
     # Remove from secret group
-    try:
+try:
 
-        await context.bot.ban_chat_member(
-            chat_id=SECRET_GROUP_ID,
-            user_id=user.id,
-            revoke_messages=False
-        )
+    await context.bot.ban_chat_member(
+        chat_id=SECRET_GROUP_ID,
+        user_id=user.id,
+        revoke_messages=False
+    )
 
+    await context.bot.unban_chat_member(
+        chat_id=SECRET_GROUP_ID,
+        user_id=user.id,
+        only_if_banned=True
+    )
 
-        await context.bot.unban_chat_member(
-            chat_id=SECRET_GROUP_ID,
-            user_id=user.id,
-            only_if_banned=True
-        )
+    member = await context.bot.get_chat_member(
+        SECRET_GROUP_ID,
+        user.id
+    )
 
+    print(
+        "SECRET STATUS:",
+        member.status
+    )
 
-        await update_secret(
-            user.id,
-            False
-        )
+    await update_secret(
+        user.id,
+        False
+    )
 
+    await clear_invite(
+        user.id
+    )
 
-        await clear_invite(
-            user.id
-        )
+    print(
+        f"Removed From Secret : {user.id}"
+    )
 
+except Exception as e:
 
-        print(
-            f"Removed From Secret : {user.id}"
-        )
-
-
-    except Exception as e:
-
-        print(
-            f"Remove Error : {e}"
-        )
+    print(
+        f"Remove Error : {e}"
+    )
 
 
 # =========================
