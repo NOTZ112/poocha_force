@@ -4,61 +4,19 @@ from telegram import (
     InlineKeyboardMarkup,
 )
 
+from telegram.constants import ChatMemberStatus
+
 from telegram.ext import (
     Application,
     CommandHandler,
     CallbackQueryHandler,
+    ChatMemberHandler,
     ContextTypes,
 )
 
-from telegram.constants import ChatMemberStatus
-
 from config import *
+
 from database import *
-
-
-async def is_member(bot, chat_id, user_id):
-    """
-    Returns True if user is currently a member/admin/owner
-    """
-    try:
-        member = await bot.get_chat_member(chat_id, user_id)
-
-        return member.status in (
-            ChatMemberStatus.MEMBER,
-            ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER,
-        )
-
-    except:
-        return False
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user = update.effective_user
-
-    await add_user(user.id)
-
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "✅ Check Access",
-                callback_data="check"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "👤 Owner",
-                url=f"https://t.me/{OWNER_USERNAME}"
-            )
-        ]
-    ]
-
-    await update.message.reply_text(
-        START_TEXT,
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
 
 
 app = (
@@ -67,12 +25,53 @@ app = (
     .token(BOT_TOKEN)
     .build()
 )
+async def is_member(
+    bot,
+    chat_id: int,
+    user_id: int
+):  
+    try:
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
-app.add_handler(
-    CommandHandler(
-        "start",
-        start
+    user = update.effective_user
+
+    await add_user(user.id)
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    text="✅ Check Access",
+                    callback_data="check_access"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👤 Owner",
+                    url=f"https://t.me/{OWNER_USERNAME}"
+                )
+            ]
+        ]
     )
-)
 
-app.run_polling()
+    await update.message.reply_text(
+        START_TEXT,
+        reply_markup=keyboard
+    )
+        member = await bot.get_chat_member(
+            chat_id=chat_id,
+            user_id=user_id
+        )
+
+        return member.status in (
+            ChatMemberStatus.OWNER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.MEMBER,
+        )
+
+    except Exception:
+
+        return False
