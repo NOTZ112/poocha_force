@@ -481,7 +481,6 @@ app.add_handler(
 )
 
 
-
 app.add_handler(
     ChatMemberHandler(
         secret_group_monitor,
@@ -499,4 +498,10 @@ print(
 
 
 
-app.run_polling()
+app.run_polling(
+    allowed_updates=[
+        "message",
+        "callback_query",
+        "chat_member"
+    ]
+)
