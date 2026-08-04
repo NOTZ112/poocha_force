@@ -339,7 +339,7 @@ async def monitor_groups(
             except Exception:
                 pass
 
-    # Only main groups
+        # Only main groups
     if chat_id not in (
         MAIN_GROUP_1_ID,
         MAIN_GROUP_2_ID
@@ -347,13 +347,11 @@ async def monitor_groups(
         return
 
 
-
     user = update.chat_member.new_chat_member.user
 
 
     if user.is_bot:
         return
-
 
 
     # Check both main groups
@@ -371,58 +369,58 @@ async def monitor_groups(
     )
 
 
-        # User still in both groups
+    # User still in both groups
     if main1 and main2:
         return
 
+
     # Remove from secret channel
-try:
+    try:
 
-    await context.bot.ban_chat_member(
-        chat_id=SECRET_GROUP_ID,
-        user_id=user.id,
-        revoke_messages=False
-    )
-
-    await context.bot.unban_chat_member(
-        chat_id=SECRET_GROUP_ID,
-        user_id=user.id
-    )
-
-    member = await context.bot.get_chat_member(
-        SECRET_GROUP_ID,
-        user.id
-    )
-
-    print(
-        "CHANNEL STATUS:",
-        member.status
-    )
-
-except Exception:
-    pass
-
-
-await update_secret(
-    user.id,
-    False
-)
-
-
-try:
-
-    await context.bot.send_message(
-        chat_id=user.id,
-        text=(
-            "⚠️ WARNING\n\n"
-            "നീ Main Group വിട്ടതോടെ Secret Channel-ലേക്കുള്ള നിന്റെ Access ഉടൻ റദ്ദാക്കി.\n\n"
-            "ഇവിടെ shortcuts ഒന്നും നടക്കില്ല.\n\n"
-            "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം Bot-ൽ 'Check Access' അമർത്തിയാൽ മാത്രമേ പുതിയ Invite ലഭിക്കൂ."
+        await context.bot.ban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id,
+            revoke_messages=False
         )
+
+        await context.bot.unban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id
+        )
+
+        print(
+            "Removed from secret channel:",
+            user.id
+        )
+
+    except Exception as e:
+        print(
+            "Secret remove error:",
+            e
+        )
+
+
+    # Disable secret access
+    await update_secret(
+        user.id,
+        False
     )
 
-except Exception:
-    pass
+
+    # Send warning
+    try:
+
+        await context.bot.send_message(
+            chat_id=user.id,
+            text=(
+                "⚠️ WARNING\n\n"
+                "നീ Main Group വിട്ടതോടെ Secret Channel-ലേക്കുള്ള നിന്റെ Access റദ്ദാക്കി.\n\n"
+                "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം Bot-ൽ Check Access അമർത്തിയാൽ മാത്രമേ പുതിയ Invite ലഭിക്കൂ."
+            )
+        )
+
+    except Exception:
+        pass
 
 await clear_invite(
     user.id
