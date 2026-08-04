@@ -303,6 +303,8 @@ async def monitor_groups(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
+    print("MAIN GROUP UPDATE RECEIVED")
+
     if update.chat_member is None:
         return
 
