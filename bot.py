@@ -340,20 +340,26 @@ async def monitor_groups(
     # Remove from secret channel
 try:
 
-    await context.bot.ban_chat_member(
-        chat_id=SECRET_GROUP_ID,
-        user_id=user.id
-    )
-
     await context.bot.unban_chat_member(
-        chat_id=SECRET_GROUP_ID,
-        user_id=user.id
-    )
+    chat_id=SECRET_GROUP_ID,
+    user_id=user.id,
+    only_if_banned=True
+)
 
-    await update_secret(
-        user.id,
-        False
-    )
+member = await context.bot.get_chat_member(
+    SECRET_GROUP_ID,
+    user.id
+)
+
+print(
+    "CHANNEL STATUS:",
+    member.status
+)
+
+await update_secret(
+    user.id,
+    False
+)
 
     await clear_invite(
         user.id
