@@ -337,50 +337,33 @@ async def monitor_groups(
 
 
 
-    # Remove from secret group
-    try:
+    # Remove from secret channel
+try:
 
-        await context.bot.ban_chat_member(
-            chat_id=SECRET_GROUP_ID,
-            user_id=user.id,
-            revoke_messages=False
-        )
+    await context.bot.ban_chat_member(
+        chat_id=SECRET_GROUP_ID,
+        user_id=user.id
+    )
 
-        await context.bot.unban_chat_member(
-            chat_id=SECRET_GROUP_ID,
-            user_id=user.id,
-            only_if_banned=True
-        )
+    await context.bot.unban_chat_member(
+        chat_id=SECRET_GROUP_ID,
+        user_id=user.id
+    )
 
-        member = await context.bot.get_chat_member(
-            SECRET_GROUP_ID,
-            user.id
-        )
+    await update_secret(
+        user.id,
+        False
+    )
 
-        print(
-            "SECRET STATUS:",
-            member.status
-        )
+    await clear_invite(
+        user.id
+    )
 
-        await update_secret(
-            user.id,
-            False
-        )
+    print(f"Removed From Secret Channel: {user.id}")
 
-        await clear_invite(
-            user.id
-        )
+except Exception as e:
 
-        print(
-            f"Removed From Secret : {user.id}"
-        )
-
-    except Exception as e:
-
-        print(
-            f"Remove Error : {e}"
-        )
-
+    print(f"Remove Error: {e}")
 
 # =========================
 # BROADCAST START
