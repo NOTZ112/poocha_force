@@ -345,10 +345,9 @@ async def monitor_groups(
         )
 
         await context.bot.unban_chat_member(
-            chat_id=SECRET_GROUP_ID,
-            user_id=user.id,
-            only_if_banned=True
-        )
+    chat_id=SECRET_GROUP_ID,
+    user_id=user.id
+)
 
         member = await context.bot.get_chat_member(
             SECRET_GROUP_ID,
