@@ -343,43 +343,37 @@ async def monitor_groups(
     )
 
 
-
     if main1 and main2:
         return
 
-
-
-
     try:
-
 
         await context.bot.ban_chat_member(
             chat_id=SECRET_GROUP_ID,
-            user_id=user.id
+            user_id=user.id,
+            revoke_messages=False
         )
 
-
+        await context.bot.unban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id,
+            only_if_banned=True
+        )
 
         await update_secret(
             user.id,
             False
         )
 
-
-
         await clear_invite(
             user.id
         )
-
-
 
         print(
             f"Removed From Secret : {user.id}"
         )
 
-
     except Exception as e:
-
 
         print(
             f"Remove Error : {e}"
