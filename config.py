@@ -9,7 +9,8 @@ MONGO_URI = os.getenv("MONGO_URI")
 MAIN_GROUP_1_ID = int(os.getenv("MAIN_GROUP_1_ID"))
 MAIN_GROUP_2_ID = int(os.getenv("MAIN_GROUP_2_ID"))
 SECRET_GROUP_ID = int(os.getenv("SECRET_GROUP_ID"))
-
+MAIN_GROUP_1_LINK = os.getenv("MAIN_GROUP_1_LINK")
+MAIN_GROUP_2_LINK = os.getenv("MAIN_GROUP_2_LINK")
 OWNER_USERNAME = os.getenv("OWNER_USERNAME")
 
 ADMIN_IDS = [
