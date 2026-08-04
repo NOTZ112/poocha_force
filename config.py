@@ -4,36 +4,59 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-MONGO_URI = os.getenv("MONGO_URI")
+BOT_TOKEN = os.getenv(
+    "BOT_TOKEN"
+)
+
+
+MONGO_URI = os.getenv(
+    "MONGO_URI"
+)
+
 
 
 MAIN_GROUP_1_ID = int(
-    os.getenv("MAIN_GROUP_1_ID")
+    os.getenv(
+        "MAIN_GROUP_1_ID",
+        "0"
+    )
 )
+
 
 MAIN_GROUP_2_ID = int(
-    os.getenv("MAIN_GROUP_2_ID")
+    os.getenv(
+        "MAIN_GROUP_2_ID",
+        "0"
+    )
 )
 
+
 SECRET_GROUP_ID = int(
-    os.getenv("SECRET_GROUP_ID")
+    os.getenv(
+        "SECRET_GROUP_ID",
+        "0"
+    )
 )
+
 
 
 MAIN_GROUP_1_LINK = os.getenv(
     "MAIN_GROUP_1_LINK"
 )
 
+
 MAIN_GROUP_2_LINK = os.getenv(
     "MAIN_GROUP_2_LINK"
 )
 
 
+
 OWNER_USERNAME = os.getenv(
-    "OWNER_USERNAME"
+    "OWNER_USERNAME",
+    "admin"
 )
+
 
 
 ADMIN_IDS = [
@@ -44,6 +67,9 @@ ADMIN_IDS = [
     ).split(",")
     if admin.strip()
 ]
+
+
+
 
 
 START_TEXT = """
@@ -61,6 +87,8 @@ press the button below to verify.
 """
 
 
+
+
 SUCCESS_TEXT = """
 ✅ Verification Successful!
 
@@ -68,6 +96,8 @@ You are eligible to join the Secret Group.
 
 Your single-use invite link is below 👇
 """
+
+
 
 
 FAILED_TEXT = """
@@ -78,6 +108,8 @@ You must join both Main Groups first.
 After joining both groups,
 press Check Access again.
 """
+
+
 
 
 REMOVED_TEXT = """
@@ -92,14 +124,16 @@ To get access again:
 1️⃣ Join both Main Groups
 2️⃣ Send /start to the bot
 3️⃣ Verify again
-
-Thank you.
 """
+
+
 
 
 ALREADY_SECRET_TEXT = """
 ✅ You are already a member of the Secret Group.
 """
+
+
 
 
 INVITE_ACTIVE_TEXT = """
