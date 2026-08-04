@@ -182,28 +182,40 @@ async def check_access(
 
 
 
-    # OLD INVITE CHECK
+    # CREATE NEW INVITE EVERY TIME
 
-    if data and data.get("invite_link") and data.get("secret"):
+await clear_invite(
+    user.id
+)
 
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "🔐 Join Secret Group",
-                        url=data["invite_link"]
-                    )
-                ]
-            ]
-        )
+invite = await context.bot.create_chat_invite_link(
+    chat_id=SECRET_GROUP_ID,
+    member_limit=1
+)
 
 
-        await query.message.reply_text(
-            "♻️ Your invite link is still active.",
-            reply_markup=keyboard
-        )
+await save_invite(
+    user.id,
+    invite.invite_link
+)
 
-        return
+
+keyboard = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton(
+                "🔐 Join Secret Group",
+                url=invite.invite_link
+            )
+        ]
+    ]
+)
+
+
+await query.message.reply_text(
+    SUCCESS_TEXT,
+    reply_markup=keyboard
+)
 
 
 
