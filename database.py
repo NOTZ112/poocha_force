@@ -1,197 +1,425 @@
-from motor.motor_asyncio import AsyncIOMotorClient
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 
-from config import MONGO_URI
+from telegram.constants import ChatMemberStatus
+
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ChatMemberHandler,
+    ContextTypes,
+)
+
+from config import *
+from database import *
 
 
-client = AsyncIOMotorClient(MONGO_URI)
+app = (
+    Application
+    .builder()
+    .token(BOT_TOKEN)
+    .build()
+)
 
-db = client.secret_access_bot
-
-users = db.users
 
 
+async def is_member(
+    bot,
+    chat_id: int,
+    user_id: int
+):
 
-async def add_user(user_id: int):
+    try:
 
-    exists = await users.find_one(
-        {
-            "user_id": user_id
-        }
+        member = await bot.get_chat_member(
+            chat_id=chat_id,
+            user_id=user_id
+        )
+
+        return member.status in (
+            ChatMemberStatus.OWNER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.MEMBER,
+        )
+
+    except Exception:
+
+        return False
+
+
+
+
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    user = update.effective_user
+
+    await add_user(
+        user.id
     )
 
-    if not exists:
 
-        await users.insert_one(
-            {
-                "user_id": user_id,
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "✅ Check Access",
+                    callback_data="check_access"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "👤 Owner",
+                    url=f"https://t.me/{OWNER_USERNAME}"
+                )
+            ]
+        ]
+    )
 
-                "main1": False,
-                "main2": False,
 
-                "secret": False,
+    await update.message.reply_text(
+        START_TEXT,
+        reply_markup=keyboard
+    )
 
-                "invite_link": None,
-                "invite_used": False,
 
-                "banned": False
-            }
+
+
+
+async def check_access(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+
+    await query.answer()
+
+
+    user = query.from_user
+
+
+    await add_user(
+        user.id
+    )
+
+
+    main1 = await is_member(
+        context.bot,
+        MAIN_GROUP_1_ID,
+        user.id
+    )
+
+
+    main2 = await is_member(
+        context.bot,
+        MAIN_GROUP_2_ID,
+        user.id
+    )
+
+
+    if not main1 or not main2:
+
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Main Group 1",
+                        url=MAIN_GROUP_1_LINK
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Main Group 2",
+                        url=MAIN_GROUP_2_LINK
+                    )
+                ]
+            ]
+        )
+
+
+        await query.message.reply_text(
+            FAILED_TEXT,
+            reply_markup=keyboard
+        )
+
+        return
+
+
+
+    data = await get_user(
+        user.id
+    )
+
+
+
+    if data and data.get("secret"):
+
+        await query.message.reply_text(
+            "✅ Secret Group access already active."
+        )
+
+        return
+
+
+
+    if data and data.get("invite_link"):
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "🔐 Join Secret Group",
+                        url=data["invite_link"]
+                    )
+                ]
+            ]
+        )
+
+
+        await query.message.reply_text(
+            "♻️ Your invite link is active.",
+            reply_markup=keyboard
+        )
+
+        return
+
+
+
+
+    invite = await context.bot.create_chat_invite_link(
+        chat_id=SECRET_GROUP_ID,
+        member_limit=1
+    )
+
+
+
+    await save_invite(
+        user.id,
+        invite.invite_link
+    )
+
+
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "🔐 Join Secret Group",
+                    url=invite.invite_link
+                )
+            ]
+        ]
+    )
+
+
+    await query.message.reply_text(
+        SUCCESS_TEXT,
+        reply_markup=keyboard
+    )
+
+
+
+
+
+
+# SECRET GROUP JOIN
+
+async def secret_group_monitor(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.chat_member is None:
+        return
+
+
+    chat_id = update.chat_member.chat.id
+
+
+    if chat_id != SECRET_GROUP_ID:
+        return
+
+
+
+    member = update.chat_member.new_chat_member
+
+
+
+    if member.status in (
+        ChatMemberStatus.MEMBER,
+        ChatMemberStatus.ADMINISTRATOR
+    ):
+
+
+        user = member.user
+
+
+        await update_secret(
+            user.id,
+            True
+        )
+
+
+        await mark_invite_used(
+            user.id
+        )
+
+
+        await clear_invite(
+            user.id
+        )
+
+
+        print(
+            f"Secret Access Added : {user.id}"
         )
 
 
 
-async def get_user(user_id: int):
-
-    return await users.find_one(
-        {
-            "user_id": user_id
-        }
-    )
 
 
 
-async def update_main1(
-    user_id: int,
-    status: bool
+# MAIN GROUP LOCK
+
+async def monitor_groups(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
 ):
 
-    await add_user(user_id)
+    if update.chat_member is None:
+        return
 
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "main1": status
-            }
-        }
+
+    chat_id = update.chat_member.chat.id
+
+
+    if chat_id not in (
+        MAIN_GROUP_1_ID,
+        MAIN_GROUP_2_ID
+    ):
+        return
+
+
+
+    user = update.chat_member.from_user
+
+
+
+    if user.is_bot:
+        return
+
+
+
+
+    main1 = await is_member(
+        context.bot,
+        MAIN_GROUP_1_ID,
+        user.id
+    )
+
+
+    main2 = await is_member(
+        context.bot,
+        MAIN_GROUP_2_ID,
+        user.id
     )
 
 
 
-async def update_main2(
-    user_id: int,
-    status: bool
-):
+    if main1 and main2:
+        return
 
-    await add_user(user_id)
 
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "main2": status
-            }
-        }
+
+    try:
+
+
+        await context.bot.ban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id
+        )
+
+
+        await update_secret(
+            user.id,
+            False
+        )
+
+
+        await clear_invite(
+            user.id
+        )
+
+
+        await set_banned(
+            user.id,
+            True
+        )
+
+
+        print(
+            f"Removed From Secret : {user.id}"
+        )
+
+
+    except Exception as e:
+
+        print(
+            f"Remove Error : {e}"
+        )
+
+
+
+
+
+
+
+# HANDLERS
+
+app.add_handler(
+    CommandHandler(
+        "start",
+        start
     )
+)
 
 
-
-async def update_secret(
-    user_id: int,
-    status: bool
-):
-
-    await add_user(user_id)
-
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "secret": status
-            }
-        }
+app.add_handler(
+    CallbackQueryHandler(
+        check_access,
+        pattern="check_access"
     )
+)
 
 
-
-async def save_invite(
-    user_id: int,
-    link: str
-):
-
-    await add_user(user_id)
-
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "invite_link": link,
-                "invite_used": False
-            }
-        }
+app.add_handler(
+    ChatMemberHandler(
+        monitor_groups,
+        ChatMemberHandler.CHAT_MEMBER
     )
+)
 
 
-
-async def mark_invite_used(
-    user_id: int
-):
-
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "invite_used": True
-            }
-        }
+app.add_handler(
+    ChatMemberHandler(
+        secret_group_monitor,
+        ChatMemberHandler.CHAT_MEMBER
     )
+)
 
 
 
-async def clear_invite(
-    user_id: int
-):
-
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "invite_link": None,
-                "invite_used": False
-            }
-        }
-    )
+print(
+    "Secret Lock Bot Started..."
+)
 
 
-
-async def set_banned(
-    user_id: int,
-    status: bool
-):
-
-    await add_user(user_id)
-
-    await users.update_one(
-        {
-            "user_id": user_id
-        },
-        {
-            "$set":
-            {
-                "banned": status
-            }
-        }
-    )
-
-
-
-async def total_users():
-
-    return await users.count_documents({})
+app.run_polling()
