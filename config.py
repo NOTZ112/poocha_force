@@ -1,141 +1,120 @@
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
+# =========================
+# BOT
+# =========================
 
-BOT_TOKEN = os.getenv(
-    "BOT_TOKEN"
-)
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-
-MONGO_URI = os.getenv(
-    "MONGO_URI"
-)
+MONGO_URI = os.getenv("MONGO_URI")
 
 
+# =========================
+# GROUPS
+# =========================
 
-MAIN_GROUP_1_ID = int(
-    os.getenv(
-        "MAIN_GROUP_1_ID",
-        "0"
-    )
-)
+MAIN_GROUP_1_ID = int(os.getenv("MAIN_GROUP_1_ID"))
 
+MAIN_GROUP_2_ID = int(os.getenv("MAIN_GROUP_2_ID"))
 
-MAIN_GROUP_2_ID = int(
-    os.getenv(
-        "MAIN_GROUP_2_ID",
-        "0"
-    )
-)
+SECRET_GROUP_ID = int(os.getenv("SECRET_GROUP_ID"))
 
 
-SECRET_GROUP_ID = int(
-    os.getenv(
-        "SECRET_GROUP_ID",
-        "0"
-    )
-)
+MAIN_GROUP_1_LINK = os.getenv("MAIN_GROUP_1_LINK")
+
+MAIN_GROUP_2_LINK = os.getenv("MAIN_GROUP_2_LINK")
 
 
-
-MAIN_GROUP_1_LINK = os.getenv(
-    "MAIN_GROUP_1_LINK"
-)
+OWNER_USERNAME = os.getenv("OWNER_USERNAME")
 
 
-MAIN_GROUP_2_LINK = os.getenv(
-    "MAIN_GROUP_2_LINK"
-)
-
-
-
-OWNER_USERNAME = os.getenv(
-    "OWNER_USERNAME",
-    "admin"
-)
-
-
-
-ADMIN_IDS = [
-    int(admin)
-    for admin in os.getenv(
-        "ADMIN_IDS",
-        ""
-    ).split(",")
-    if admin.strip()
-]
-
-
-
-
+# =========================
+# START
+# =========================
 
 START_TEXT = """
-👋 Welcome!
+👋 സ്വാഗതം.
 
-🔒 Secret Group Access
+🔒 സീക്രട്ട് ചാനലിൽ പ്രവേശിക്കാൻ ആദ്യം താഴെയുള്ള രണ്ട് Main Group-കളിലും അംഗമാകണം.
 
-To enter the Secret Group:
-
-✅ Join Main Group 1
-✅ Join Main Group 2
-
-After joining both groups,
-press the button below to verify.
+ശേഷം "അക്സസ് പരിശോധിക്കുക" ബട്ടൺ അമർത്തുക.
 """
 
 
+# =========================
+# BUTTON
+# =========================
+
+CHECK_BUTTON = "✅ അക്സസ് പരിശോധിക്കുക"
 
 
-SUCCESS_TEXT = """
-✅ Verification Successful!
-
-You are eligible to join the Secret Group.
-
-Your single-use invite link is below 👇
-"""
-
-
-
+# =========================
+# FAILED
+# =========================
 
 FAILED_TEXT = """
-❌ Verification Failed!
+❌ പരിശോധന പരാജയപ്പെട്ടു.
 
-You must join both Main Groups first.
+സീക്രട്ട് ചാനലിൽ പ്രവേശിക്കാൻ ആദ്യം രണ്ട് Main Group-കളിലും അംഗമാകണം.
 
-After joining both groups,
-press Check Access again.
+രണ്ടും Join ചെയ്ത ശേഷം വീണ്ടും
+'അക്സസ് പരിശോധിക്കുക'
+അമർത്തുക.
 """
 
 
+# =========================
+# SUCCESS
+# =========================
 
+SUCCESS_TEXT = """
+✅ പരിശോധന വിജയിച്ചു!
 
-REMOVED_TEXT = """
-🔒 Secret Group Access Removed
+🎉 നിങ്ങൾക്ക് ഇപ്പോൾ സീക്രട്ട് ചാനലിൽ പ്രവേശിക്കാം.
 
-You left one of the required Main Groups.
+👇 താഴെയുള്ള ബട്ടൺ ഉപയോഗിക്കുക.
 
-You have been removed from the Secret Group.
-
-To get access again:
-
-1️⃣ Join both Main Groups
-2️⃣ Send /start to the bot
-3️⃣ Verify again
+⚠️ ഈ ലിങ്ക് ഒരാൾക്ക് മാത്രം ഉപയോഗിക്കാനാകും.
+മറ്റാർക്കും ഉപയോഗിക്കാൻ കഴിയില്ല.
 """
 
 
-
+# =========================
+# ALREADY
+# =========================
 
 ALREADY_SECRET_TEXT = """
-✅ You are already a member of the Secret Group.
+✅ നിങ്ങൾ ഇതിനകം സീക്രട്ട് ചാനലിൽ അംഗമാണ്.
 """
 
 
+# =========================
+# REMOVED
+# =========================
 
+REMOVED_TEXT = """
+🚫 നിങ്ങളുടെ സീക്രട്ട് ചാനൽ പ്രവേശനം റദ്ദാക്കി.
 
-INVITE_ACTIVE_TEXT = """
-♻️ Your previous invite link is still active.
+കാരണം:
+രണ്ട് Main Group-കളിൽ ഏതെങ്കിലും ഒന്നിൽ നിന്നും നിങ്ങൾ പുറത്തായി.
+
+വീണ്ടും രണ്ട് Main Group-കളിലും Join ചെയ്ത ശേഷം Bot-ൽ വന്ന്
+
+✅ അക്സസ് പരിശോധിക്കുക
+
+അമർത്തിയാൽ പുതിയ Single Use Link ലഭിക്കും.
 """
+
+
+# =========================
+# AUTO DELETE
+# =========================
+
+AUTO_DELETE_MESSAGES = True
+
+KEEP_LAST_MESSAGES = 2
