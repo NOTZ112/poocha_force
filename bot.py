@@ -31,17 +31,32 @@ Application
 #=========================
 
 async def is_member(
-bot,
-chat_id: int,
-user_id: int
+    bot,
+    chat_id: int,
+    user_id: int
 ):
 
-    try:  
+    try:
 
-    member = await bot.get_chat_member(  
-        chat_id,  
-        user_id  
-    )  
+        member = await bot.get_chat_member(
+            chat_id,
+            user_id
+        )
+
+        return member.status in (
+            ChatMemberStatus.OWNER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.MEMBER
+        )
+
+    except Exception as e:
+
+        print(
+            "Member Check Error:",
+            e
+        )
+
+        return False
 
     return member.status in (  
         ChatMemberStatus.OWNER,  
