@@ -24,11 +24,9 @@ Application
 .build()
 )
 
-#=========================
-
-#CHECK MEMBER
-
-#=========================
+# =========================
+# CHECK MEMBER
+# =========================
 
 async def is_member(
     bot,
@@ -57,21 +55,6 @@ async def is_member(
         )
 
         return False
-
-    return member.status in (  
-        ChatMemberStatus.OWNER,  
-        ChatMemberStatus.ADMINISTRATOR,  
-        ChatMemberStatus.MEMBER  
-    )  
-
-except Exception as e:  
-
-    print(  
-        "Member Check Error:",  
-        e  
-    )  
-
-    return False
 
 #=========================
 
