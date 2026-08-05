@@ -57,43 +57,42 @@ async def is_member(
         return False
 
 #=========================
-
-#START
-
-#=========================
+# =========================
+# START
+# =========================
 
 async def start(
-update: Update,
-context: ContextTypes.DEFAULT_TYPE
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
 ):
 
-user = update.effective_user  
+    user = update.effective_user
 
-await add_user(  
-    user.id  
-)  
+    await add_user(
+        user.id
+    )
 
-keyboard = InlineKeyboardMarkup(  
-    [  
-        [  
-            InlineKeyboardButton(  
-                "✅ Check Access",  
-                callback_data="check_access"  
-            )  
-        ],  
-        [  
-            InlineKeyboardButton(  
-                "👤 Owner",  
-                url=f"https://t.me/{OWNER_USERNAME}"  
-            )  
-        ]  
-    ]  
-)  
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "✅ Check Access",
+                    callback_data="check_access"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "👤 Owner",
+                    url=f"https://t.me/{OWNER_USERNAME}"
+                )
+            ]
+        ]
+    )
 
-await update.message.reply_text(  
-    START_TEXT,  
-    reply_markup=keyboard  
-)
+    await update.message.reply_text(
+        START_TEXT,
+        reply_markup=keyboard
+    )
 
 #=========================
 
