@@ -36,7 +36,7 @@ chat_id: int,
 user_id: int
 ):
 
-try:  
+    try:  
 
     member = await bot.get_chat_member(  
         chat_id,  
