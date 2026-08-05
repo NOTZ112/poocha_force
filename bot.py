@@ -314,7 +314,26 @@ async def monitor_groups(
 
 
     new_status = update.chat_member.new_chat_member.status
+if new_status == ChatMemberStatus.MEMBER:
 
+    try:
+        await context.bot.unban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id,
+            only_if_banned=True
+        )
+
+        print(
+            "Secret user unbanned:",
+            user.id
+        )
+
+    except Exception as e:
+
+        print(
+            "Unban error:",
+            e
+        )
 
     print(
         "MAIN GROUP UPDATE:",
