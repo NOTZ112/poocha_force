@@ -134,3 +134,72 @@ async def get_last_messages(user_id: int):
         "last_messages",
         []
     )
+# =========================
+# SECRET GROUP JOIN CHECK
+# =========================
+
+async def secret_join_check(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    member = update.chat_member
+
+    if member.chat.id != SECRET_GROUP_ID:
+        return
+
+    user = member.from_user
+
+    new_status = member.new_chat_member.status
+
+    if new_status in (
+        ChatMemberStatus.MEMBER,
+        ChatMemberStatus.ADMINISTRATOR,
+        ChatMemberStatus.OWNER,
+    ):
+
+        await update_secret(
+            user.id,
+            True
+        )
+
+        print(
+            "Secret access granted:",
+            user.id
+        )
+
+
+# =========================
+# HANDLERS
+# =========================
+
+app.add_handler(
+    CommandHandler(
+        "start",
+        start
+    )
+)
+
+
+app.add_handler(
+    CallbackQueryHandler(
+        check_access,
+        pattern="^check_access$"
+    )
+)
+
+
+app.add_handler(
+    ChatMemberHandler(
+        secret_join_check,
+        ChatMemberHandler.CHAT_MEMBER
+    )
+)
+
+
+print(
+    "Bot Started"
+)
+
+
+app.run_polling()
