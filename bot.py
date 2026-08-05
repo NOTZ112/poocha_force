@@ -293,6 +293,10 @@ async def main_group_check(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
+    print(
+        "CHAT MEMBER EVENT RECEIVED"
+    )
+
     member = update.chat_member
 
     print(
