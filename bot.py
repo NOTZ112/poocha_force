@@ -165,11 +165,26 @@ async def check_access(
 
     if data and data.get("secret"):
 
+    still_member = await is_member(
+        context.bot,
+        SECRET_CHANNEL_ID,
+        user.id
+    )
+
+    if still_member:
+
         await query.message.reply_text(
             ALREADY_SECRET_TEXT
         )
 
         return
+
+    else:
+
+        await update_secret(
+            user.id,
+            False
+        )
 
 
 
