@@ -22,6 +22,13 @@ from database import *
 app = (
     Application.builder()
     .token(BOT_TOKEN)
+    .allowed_updates(
+        [
+            "message",
+            "callback_query",
+            "chat_member"
+        ]
+    )
     .build()
 )
 
