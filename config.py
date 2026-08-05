@@ -1,5 +1,4 @@
 import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -9,111 +8,103 @@ load_dotenv()
 # BOT
 # =========================
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv(
+    "BOT_TOKEN"
+)
 
-MONGO_URI = os.getenv("MONGO_URI")
-
-
-# =========================
-# GROUPS
-# =========================
-
-MAIN_GROUP_1_ID = int(os.getenv("MAIN_GROUP_1_ID"))
-
-MAIN_GROUP_2_ID = int(os.getenv("MAIN_GROUP_2_ID"))
-
-SECRET_GROUP_ID = int(os.getenv("SECRET_GROUP_ID"))
-
-
-MAIN_GROUP_1_LINK = os.getenv("MAIN_GROUP_1_LINK")
-
-MAIN_GROUP_2_LINK = os.getenv("MAIN_GROUP_2_LINK")
-
-
-OWNER_USERNAME = os.getenv("OWNER_USERNAME")
+MONGO_URI = os.getenv(
+    "MONGO_URI"
+)
 
 
 # =========================
-# START
+# MAIN GROUPS
+# =========================
+
+MAIN_GROUP_1_ID = int(
+    os.getenv(
+        "MAIN_GROUP_1_ID"
+    )
+)
+
+MAIN_GROUP_2_ID = int(
+    os.getenv(
+        "MAIN_GROUP_2_ID"
+    )
+)
+
+
+MAIN_GROUP_1_LINK = os.getenv(
+    "MAIN_GROUP_1_LINK"
+)
+
+MAIN_GROUP_2_LINK = os.getenv(
+    "MAIN_GROUP_2_LINK"
+)
+
+
+# =========================
+# SECRET CHANNEL
+# =========================
+
+SECRET_CHANNEL_ID = int(
+    os.getenv(
+        "SECRET_CHANNEL_ID"
+    )
+)
+
+
+# =========================
+# OWNER
+# =========================
+
+OWNER_USERNAME = os.getenv(
+    "OWNER_USERNAME"
+)
+
+
+# =========================
+# TEXTS
 # =========================
 
 START_TEXT = """
 👋 സ്വാഗതം.
 
-🔒 സീക്രട്ട് ചാനലിൽ പ്രവേശിക്കാൻ ആദ്യം താഴെയുള്ള രണ്ട് Main Group-കളിലും അംഗമാകണം.
+🔒 Secret Channel access ലഭിക്കാൻ
+ആദ്യം രണ്ട് Main Group-ലും join ചെയ്യുക.
 
-ശേഷം "അക്സസ് പരിശോധിക്കുക" ബട്ടൺ അമർത്തുക.
+ശേഷം താഴെയുള്ള button അമർത്തുക.
 """
 
-
-# =========================
-# BUTTON
-# =========================
-
-CHECK_BUTTON = "✅ അക്സസ് പരിശോധിക്കുക"
-
-
-# =========================
-# FAILED
-# =========================
 
 FAILED_TEXT = """
-❌ പരിശോധന പരാജയപ്പെട്ടു.
+❌ Access ലഭിച്ചില്ല.
 
-സീക്രട്ട് ചാനലിൽ പ്രവേശിക്കാൻ ആദ്യം രണ്ട് Main Group-കളിലും അംഗമാകണം.
-
-രണ്ടും Join ചെയ്ത ശേഷം വീണ്ടും
-'അക്സസ് പരിശോധിക്കുക'
-അമർത്തുക.
+ആദ്യം രണ്ട് Main Group-ലും join ചെയ്യുക.
 """
 
-
-# =========================
-# SUCCESS
-# =========================
 
 SUCCESS_TEXT = """
-✅ പരിശോധന വിജയിച്ചു!
+✅ Access Approved.
 
-🎉 നിങ്ങൾക്ക് ഇപ്പോൾ സീക്രട്ട് ചാനലിൽ പ്രവേശിക്കാം.
+👇 Secret Channel join ചെയ്യാൻ താഴെയുള്ള link ഉപയോഗിക്കുക.
 
-👇 താഴെയുള്ള ബട്ടൺ ഉപയോഗിക്കുക.
-
-⚠️ ഈ ലിങ്ക് ഒരാൾക്ക് മാത്രം ഉപയോഗിക്കാനാകും.
-മറ്റാർക്കും ഉപയോഗിക്കാൻ കഴിയില്ല.
+⚠️ ഈ link ഒരാൾക്ക് മാത്രം ഉപയോഗിക്കാം.
 """
 
-
-# =========================
-# ALREADY
-# =========================
 
 ALREADY_SECRET_TEXT = """
-✅ നിങ്ങൾ ഇതിനകം സീക്രട്ട് ചാനലിൽ അംഗമാണ്.
+✅ നിങ്ങൾ ഇതിനകം Secret Channel അംഗമാണ്.
 """
 
-
-# =========================
-# REMOVED
-# =========================
 
 REMOVED_TEXT = """
-🚫 നിങ്ങളുടെ സീക്രട്ട് ചാനൽ പ്രവേശനം റദ്ദാക്കി.
+🚫 നിങ്ങളുടെ Secret Channel access നീക്കം ചെയ്തു.
 
 കാരണം:
-രണ്ട് Main Group-കളിൽ ഏതെങ്കിലും ഒന്നിൽ നിന്നും നിങ്ങൾ പുറത്തായി.
-
-വീണ്ടും രണ്ട് Main Group-കളിലും Join ചെയ്ത ശേഷം Bot-ൽ വന്ന്
-
-✅ അക്സസ് പരിശോധിക്കുക
-
-അമർത്തിയാൽ പുതിയ Single Use Link ലഭിക്കും.
+Main Group-ൽ നിന്ന് പുറത്തായി.
 """
 
-
-# =========================
-# AUTO DELETE
-# =========================
 
 AUTO_DELETE_MESSAGES = True
 
