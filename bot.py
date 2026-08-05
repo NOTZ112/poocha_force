@@ -1,460 +1,486 @@
 from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
+Update,
+InlineKeyboardButton,
+InlineKeyboardMarkup,
 )
 
 from telegram.constants import ChatMemberStatus
 
 from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    ChatMemberHandler,
-    ContextTypes,
+Application,
+CommandHandler,
+CallbackQueryHandler,
+ChatMemberHandler,
+ContextTypes,
 )
 
 from config import *
 from database import *
 
-
 app = (
-    Application
-    .builder()
-    .token(BOT_TOKEN)
-    .build()
+Application
+.builder()
+.token(BOT_TOKEN)
+.build()
 )
 
+=========================
 
-# =========================
-# CHECK MEMBER
-# =========================
+CHECK MEMBER
+
+=========================
 
 async def is_member(
-    bot,
-    chat_id: int,
-    user_id: int
+bot,
+chat_id: int,
+user_id: int
 ):
 
-    try:
+try:  
 
-        member = await bot.get_chat_member(
-            chat_id,
-            user_id
-        )
+    member = await bot.get_chat_member(  
+        chat_id,  
+        user_id  
+    )  
 
-        return member.status in (
-            ChatMemberStatus.OWNER,
-            ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.MEMBER
-        )
+    return member.status in (  
+        ChatMemberStatus.OWNER,  
+        ChatMemberStatus.ADMINISTRATOR,  
+        ChatMemberStatus.MEMBER  
+    )  
 
-    except Exception:
-        return False
+except Exception as e:  
 
+    print(  
+        "Member Check Error:",  
+        e  
+    )  
 
-# =========================
-# START
-# =========================
+    return False
+
+=========================
+
+START
+
+=========================
 
 async def start(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
+update: Update,
+context: ContextTypes.DEFAULT_TYPE
 ):
 
-    user = update.effective_user
+user = update.effective_user  
 
-    await add_user(
-        user.id
-    )
+await add_user(  
+    user.id  
+)  
 
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "✅ Check Access",
-                    callback_data="check_access"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "👤 Owner",
-                    url=f"https://t.me/{OWNER_USERNAME}"
-                )
-            ]
-        ]
-    )
+keyboard = InlineKeyboardMarkup(  
+    [  
+        [  
+            InlineKeyboardButton(  
+                "✅ Check Access",  
+                callback_data="check_access"  
+            )  
+        ],  
+        [  
+            InlineKeyboardButton(  
+                "👤 Owner",  
+                url=f"https://t.me/{OWNER_USERNAME}"  
+            )  
+        ]  
+    ]  
+)  
 
-    await update.message.reply_text(
-        START_TEXT,
-        reply_markup=keyboard
-    )
-# =========================
-# CHECK ACCESS
-# =========================
+await update.message.reply_text(  
+    START_TEXT,  
+    reply_markup=keyboard  
+)
+
+=========================
+
+CHECK ACCESS
+
+=========================
 
 async def check_access(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
+update: Update,
+context: ContextTypes.DEFAULT_TYPE
 ):
 
-    query = update.callback_query
-    await query.answer()
+query = update.callback_query  
+await query.answer()  
 
-    user = query.from_user
+user = query.from_user  
 
-    await add_user(user.id)
+await add_user(user.id)  
 
-    main1 = await is_member(
-        context.bot,
-        MAIN_GROUP_1_ID,
-        user.id
-    )
+main1 = await is_member(  
+    context.bot,  
+    MAIN_GROUP_1_ID,  
+    user.id  
+)  
 
-    main2 = await is_member(
-        context.bot,
-        MAIN_GROUP_2_ID,
-        user.id
-    )
+main2 = await is_member(  
+    context.bot,  
+    MAIN_GROUP_2_ID,  
+    user.id  
+)  
 
-    if not main1 or not main2:
+if not main1 or not main2:  
 
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "📢 Join Main Group 1",
-                        url=MAIN_GROUP_1_LINK
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "📢 Join Main Group 2",
-                        url=MAIN_GROUP_2_LINK
-                    )
-                ]
-            ]
-        )
+    keyboard = InlineKeyboardMarkup(  
+        [  
+            [  
+                InlineKeyboardButton(  
+                    "📢 Join Main Group 1",  
+                    url=MAIN_GROUP_1_LINK  
+                )  
+            ],  
+            [  
+                InlineKeyboardButton(  
+                    "📢 Join Main Group 2",  
+                    url=MAIN_GROUP_2_LINK  
+                )  
+            ]  
+        ]  
+    )  
 
-        await query.message.reply_text(
-            FAILED_TEXT,
-            reply_markup=keyboard
-        )
+    await query.message.reply_text(  
+        FAILED_TEXT,  
+        reply_markup=keyboard  
+    )  
 
-        return
+    return  
 
-    data = await get_user(user.id)
+data = await get_user(user.id)  
 
-    # Already in Secret Group
-    if data and data.get("secret"):
+if data and data.get("secret"):  
 
-        still_member = await is_member(
-            context.bot,
-            SECRET_GROUP_ID,
-            user.id
-        )
+    still_member = await is_member(  
+        context.bot,  
+        SECRET_GROUP_ID,  
+        user.id  
+    )  
 
-        if still_member:
+    if still_member:  
 
-            await query.message.reply_text(
-                "✅ Secret Access Already Active."
-            )
+        await query.message.reply_text(  
+            "✅ Secret Access Already Active."  
+        )  
 
-            return
+        return  
 
-        await update_secret(
-            user.id,
-            False
-        )
+    await update_secret(  
+        user.id,  
+        False  
+    )  
+# Revoke old invite link  
+if data and data.get("invite_link"):  
 
-    # Revoke old invite link
-    if data and data.get("invite_link"):
+    try:  
 
-    try:
+        await context.bot.revoke_chat_invite_link(  
+            chat_id=SECRET_GROUP_ID,  
+            invite_link=data["invite_link"]  
+        )  
 
-        await context.bot.revoke_chat_invite_link(
-            chat_id=SECRET_GROUP_ID,
-            invite_link=data["invite_link"]
-        )
+    except Exception as e:  
 
-    except Exception as e:
+        print(  
+            "Invite revoke error:",  
+            e  
+        )  
 
-        print("Invite revoke error:", e)
+await clear_invite(user.id)  
 
-    await clear_invite(user.id)
+invite = await context.bot.create_chat_invite_link(  
+    chat_id=SECRET_GROUP_ID,  
+    member_limit=1  
+)  
 
-    # Create new one-time invite
-    invite = await context.bot.create_chat_invite_link(
-        chat_id=SECRET_GROUP_ID,
-        member_limit=1
-    )
+await save_invite(  
+    user.id,  
+    invite.invite_link  
+)  
 
-    await save_invite(
-        user.id,
-        invite.invite_link
-    )
+keyboard = InlineKeyboardMarkup(  
+    [  
+        [  
+            InlineKeyboardButton(  
+                "🔐 Join Secret Group",  
+                url=invite.invite_link  
+            )  
+        ]  
+    ]  
+)  
 
-    keyboard = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton(
-                    "🔐 Join Secret Group",
-                    url=invite.invite_link
-                )
-            ]
-        ]
-    )
+await query.message.reply_text(  
+    SUCCESS_TEXT,  
+    reply_markup=keyboard  
+)
 
-    await query.message.reply_text(
-        SUCCESS_TEXT,
-        reply_markup=keyboard
-    )
-# =========================
-# SECRET GROUP MONITOR
-# =========================
+=========================
+
+SECRET GROUP MONITOR
+
+=========================
 
 async def secret_group_monitor(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
+update: Update,
+context: ContextTypes.DEFAULT_TYPE
 ):
 
-    if update.chat_member is None:
-        return
+if update.chat_member is None:  
+    return  
 
-    if update.chat_member.chat.id != SECRET_GROUP_ID:
-        return
+if update.chat_member.chat.id != SECRET_GROUP_ID:  
+    return  
 
-    member = update.chat_member.new_chat_member
+member = update.chat_member.new_chat_member  
 
-    print(
-        "SECRET UPDATE:",
-        member.user.id,
-        member.status
+print(  
+    "SECRET UPDATE:",  
+    member.user.id,  
+    member.status  
+)  
+
+if member.status in (  
+    ChatMemberStatus.OWNER,  
+    ChatMemberStatus.ADMINISTRATOR,  
+    ChatMemberStatus.MEMBER  
+):  
+
+    await update_secret(  
+        member.user.id,  
+        True  
+    )  
+
+    print(  
+        "Secret Access Added:",  
+        member.user.id  
     )
 
-    if member.status in (
-        ChatMemberStatus.MEMBER,
-        ChatMemberStatus.ADMINISTRATOR,
-        ChatMemberStatus.OWNER
-    ):
+=========================
 
-        await update_secret(
-            member.user.id,
-            True
-        )
+MAIN GROUP LOCK
 
-        print(
-            "Secret Access Added:",
-            member.user.id
-        )
-
-
-# =========================
-# MAIN GROUP LOCK
-# =========================
+=========================
 
 async def monitor_groups(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
+update: Update,
+context: ContextTypes.DEFAULT_TYPE
 ):
 
-    if update.chat_member is None:
-        return
+if update.chat_member is None:  
+    return  
 
-    chat_id = update.chat_member.chat.id
+print(  
+    update.chat_member.old_chat_member.status,  
+    "->",  
+    update.chat_member.new_chat_member.status  
+)  
 
-    if chat_id not in (
-        MAIN_GROUP_1_ID,
-        MAIN_GROUP_2_ID
-    ):
-        return
+chat_id = update.chat_member.chat.id  
 
-    user = update.chat_member.new_chat_member.user
+if chat_id not in (  
+    MAIN_GROUP_1_ID,  
+    MAIN_GROUP_2_ID  
+):  
+    return  
 
-    if user.is_bot:
-        return
+user = update.chat_member.new_chat_member.user  
 
-    new_status = update.chat_member.new_chat_member.status
+if user.is_bot:  
+    return  
 
-    print(
-        "MAIN GROUP UPDATE:",
-        user.id,
-        new_status
-    )
+new_status = update.chat_member.new_chat_member.status  
 
-    # User left / banned from a main group
-    if new_status in (
-        ChatMemberStatus.LEFT,
-        ChatMemberStatus.BANNED,
-    ):
+print(  
+    "MAIN GROUP UPDATE:",  
+    user.id,  
+    new_status  
+)  
 
-        data = await get_user(user.id)
+if new_status in (  
+    ChatMemberStatus.LEFT,  
+    ChatMemberStatus.BANNED,  
+):  
 
-        # Revoke old invite link
-        if data and data.get("invite_link"):
+    data = await get_user(user.id)  
 
-    try:
+    # Revoke old invite link  
+    if data and data.get("invite_link"):  
 
-        await context.bot.revoke_chat_invite_link(
-            chat_id=SECRET_GROUP_ID,
-            invite_link=data["invite_link"]
-        )
+        try:  
 
-    except Exception as e:
+            await context.bot.revoke_chat_invite_link(  
+                chat_id=SECRET_GROUP_ID,  
+                invite_link=data["invite_link"]  
+            )  
 
-        print("Invite revoke error:", e)
+        except Exception as e:  
 
-        # Remove from Secret Group
-        try:
+            print(  
+                "Invite revoke error:",  
+                e  
+            )  
+    # Remove from Secret Group  
+    try:  
 
-            await context.bot.ban_chat_member(
-                chat_id=SECRET_GROUP_ID,
-                user_id=user.id,
-                revoke_messages=False
-            )
+        await context.bot.ban_chat_member(  
+            chat_id=SECRET_GROUP_ID,  
+            user_id=user.id,  
+            revoke_messages=False  
+        )  
 
-            await context.bot.unban_chat_member(
-                chat_id=SECRET_GROUP_ID,
-                user_id=user.id,
-                only_if_banned=True
-            )
+        await context.bot.unban_chat_member(  
+            chat_id=SECRET_GROUP_ID,  
+            user_id=user.id,  
+            only_if_banned=True  
+        )  
 
-            print(
-                "Secret access removed:",
-                user.id
-            )
+        print(  
+            "Secret access removed:",  
+            user.id  
+        )  
 
-        except Exception as e:
+    except Exception as e:  
 
-            print(
-                "Remove error:",
-                e
-            )
+        print(  
+            "Remove error:",  
+            e  
+        )  
 
-        await update_secret(
-            user.id,
-            False
-        )
+    await update_secret(  
+        user.id,  
+        False  
+    )  
 
-        await clear_invite(
-            user.id
-        )
+    await clear_invite(  
+        user.id  
+    )  
 
-        try:
+    try:  
 
-            await context.bot.send_message(
-                chat_id=user.id,
-                text=(
-                    "⚠️ WARNING\n\n"
-                    "നീ Main Group വിട്ടതിനാൽ Secret Group Access റദ്ദാക്കി.\n\n"
-                    "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം\n"
-                    "'Check Access' അമർത്തി പുതിയ Invite Link നേടുക."
-                )
-            )
+        await context.bot.send_message(  
+            chat_id=user.id,  
+            text=(  
+                "⚠️ WARNING\n\n"  
+                "നീ Main Group വിട്ടതിനാൽ Secret Group Access റദ്ദാക്കി.\n\n"  
+                "രണ്ട് Main Groups-ലും വീണ്ടും Join ചെയ്ത ശേഷം\n"  
+                "'Check Access' അമർത്തി പുതിയ Invite Link നേടുക."  
+            )  
+        )  
 
-        except Exception:
-            pass
-# =========================
-# BROADCAST
-# =========================
+    except Exception:  
+        pass
+
+=========================
+
+BROADCAST
+
+=========================
 
 def is_admin(user_id):
-    return user_id in ADMIN_IDS
-
+return user_id in ADMIN_IDS
 
 async def broadcast(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
+update: Update,
+context: ContextTypes.DEFAULT_TYPE
 ):
 
-    if not is_admin(update.effective_user.id):
-        return
+if not is_admin(update.effective_user.id):  
+    return  
 
-    if not update.message.reply_to_message:
+if not update.message.reply_to_message:  
 
-        await update.message.reply_text(
-            "Reply to a message and use /broadcast"
-        )
+    await update.message.reply_text(  
+        "Reply to a message and use /broadcast"  
+    )  
 
-        return
+    return  
 
-    users = await get_all_users()
+users = await get_all_users()  
 
-    sent = 0
-    failed = 0
+sent = 0  
+failed = 0  
 
-    status = await update.message.reply_text(
-        "Broadcasting..."
-    )
+status = await update.message.reply_text(  
+    "Broadcasting..."  
+)  
 
-    for user_id in users:
+for user_id in users:  
 
-        try:
+    try:  
 
-            await context.bot.copy_message(
-                chat_id=user_id,
-                from_chat_id=update.effective_chat.id,
-                message_id=update.message.reply_to_message.message_id
-            )
+        await context.bot.copy_message(  
+            chat_id=user_id,  
+            from_chat_id=update.effective_chat.id,  
+            message_id=update.message.reply_to_message.message_id  
+        )  
 
-            sent += 1
+        sent += 1  
 
-        except Exception:
+    except Exception:  
 
-            failed += 1
+        failed += 1  
 
-    await status.edit_text(
-        f"✅ Broadcast Completed\n\n"
-        f"Sent : {sent}\n"
-        f"Failed : {failed}"
-    )
+await status.edit_text(  
+    f"✅ Broadcast Completed\n\n"  
+    f"Sent : {sent}\n"  
+    f"Failed : {failed}"  
+)
 
+=========================
 
-# =========================
-# HANDLERS
-# =========================
+HANDLERS
+
+=========================
 
 app.add_handler(
-    CommandHandler(
-        "start",
-        start
-    )
+CommandHandler(
+"start",
+start
+)
 )
 
 app.add_handler(
-    CommandHandler(
-        "broadcast",
-        broadcast
-    )
+CommandHandler(
+"broadcast",
+broadcast
+)
 )
 
 app.add_handler(
-    CallbackQueryHandler(
-        check_access,
-        pattern="check_access"
-    )
+CallbackQueryHandler(
+check_access,
+pattern="check_access"
+)
 )
 
 app.add_handler(
-    ChatMemberHandler(
-        monitor_groups,
-        ChatMemberHandler.CHAT_MEMBER
-    )
+ChatMemberHandler(
+monitor_groups,
+ChatMemberHandler.CHAT_MEMBER
+)
 )
 
 app.add_handler(
-    ChatMemberHandler(
-        secret_group_monitor,
-        ChatMemberHandler.CHAT_MEMBER
-    )
+ChatMemberHandler(
+secret_group_monitor,
+ChatMemberHandler.CHAT_MEMBER
+)
 )
 
-print("Secret Lock Bot Started...")
+print(
+"Secret Lock Bot Started..."
+)
 
 app.run_polling(
-    allowed_updates=[
-        "message",
-        "callback_query",
-        "chat_member"
-    ]
+allowed_updates=[
+"message",
+"callback_query",
+"chat_member"
+]
 )
