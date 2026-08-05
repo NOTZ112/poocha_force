@@ -414,10 +414,4 @@ print(
     "Bot Started"
 )
 
-app.run_polling(
-    allowed_updates=[
-        "message",
-        "callback_query",
-        "chat_member"
-    ]
-)
+app.run_polling()
