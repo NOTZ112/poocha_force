@@ -26,7 +26,7 @@ Application
 
 #=========================
 
-CHECK MEMBER
+#CHECK MEMBER
 
 #=========================
 
@@ -60,7 +60,7 @@ except Exception as e:
 
 #=========================
 
-START
+#START
 
 #=========================
 
@@ -99,7 +99,7 @@ await update.message.reply_text(
 
 #=========================
 
-CHECK ACCESS
+#CHECK ACCESS
 
 #=========================
 
@@ -222,7 +222,7 @@ await query.message.reply_text(
 
 #=========================
 
-SECRET GROUP MONITOR
+#SECRET GROUP MONITOR
 
 #=========================
 
@@ -263,7 +263,7 @@ if member.status in (
 
 #=========================
 
-MAIN GROUP LOCK
+#MAIN GROUP LOCK
 
 #=========================
 
