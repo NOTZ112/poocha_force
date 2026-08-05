@@ -168,17 +168,18 @@ async def check_access(
         )
 
     # Revoke old invite link
-    if data and data.get("invite"):
+    if data and data.get("invite_link"):
 
-        try:
+    try:
 
-            await context.bot.revoke_chat_invite_link(
-                chat_id=SECRET_GROUP_ID,
-                invite_link=data["invite"]
-            )
+        await context.bot.revoke_chat_invite_link(
+            chat_id=SECRET_GROUP_ID,
+            invite_link=data["invite_link"]
+        )
 
-        except Exception:
-            pass
+    except Exception as e:
+
+        print("Invite revoke error:", e)
 
     await clear_invite(user.id)
 
@@ -290,15 +291,18 @@ async def monitor_groups(
         data = await get_user(user.id)
 
         # Revoke old invite link
-        if data and data.get("invite"):
+        if data and data.get("invite_link"):
 
-            try:
-                await context.bot.revoke_chat_invite_link(
-                    chat_id=SECRET_GROUP_ID,
-                    invite_link=data["invite"]
-                )
-            except Exception as e:
-                print("Invite revoke error:", e)
+    try:
+
+        await context.bot.revoke_chat_invite_link(
+            chat_id=SECRET_GROUP_ID,
+            invite_link=data["invite_link"]
+        )
+
+    except Exception as e:
+
+        print("Invite revoke error:", e)
 
         # Remove from Secret Group
         try:
