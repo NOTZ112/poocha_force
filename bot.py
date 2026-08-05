@@ -222,7 +222,25 @@ except Exception as e:
 
 
     await save_invite(
-        user.id,
+    user.id,
+    invite.invite_link
+)
+
+keyboard = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton(
+                "🔐 Join Secret Group",
+                url=invite.invite_link
+            )
+        ]
+    ]
+)
+
+await query.message.reply_text(
+    SUCCESS_TEXT,
+    reply_markup=keyboard
+)
 # =========================
 # CHECK ACCESS
 # =========================
