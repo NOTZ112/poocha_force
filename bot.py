@@ -227,10 +227,10 @@ async def check_access(
         reply_markup=keyboard
             )        
 # =========================
-# SECRET GROUP JOIN CHECK
+# SECRET CHANNEL MEMBER CHECK
 # =========================
 
-async def secret_join_check(
+async def secret_channel_check(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
@@ -244,6 +244,8 @@ async def secret_join_check(
 
     new_status = member.new_chat_member.status
 
+
+    # USER JOINED SECRET CHANNEL
     if new_status in (
         ChatMemberStatus.MEMBER,
         ChatMemberStatus.ADMINISTRATOR,
@@ -256,10 +258,109 @@ async def secret_join_check(
         )
 
         print(
-            "Secret access granted:",
+            "Secret Channel Joined:",
             user.id
         )
 
+        return
+
+
+    # USER LEFT SECRET CHANNEL
+    if new_status in (
+        ChatMemberStatus.LEFT,
+        ChatMemberStatus.BANNED,
+    ):
+
+        await update_secret(
+            user.id,
+            False
+        )
+
+        await clear_invite(
+            user.id
+        )
+
+        print(
+            "Secret Access Removed:",
+            user.id
+        )
+# =========================
+# MAIN GROUP LEAVE CHECK
+# =========================
+
+async def main_group_check(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    member = update.chat_member
+
+    if member.chat.id not in (
+        MAIN_GROUP_1_ID,
+        MAIN_GROUP_2_ID
+    ):
+        return
+
+    user = member.from_user
+
+    new_status = member.new_chat_member.status
+
+
+    if new_status in (
+        ChatMemberStatus.LEFT,
+        ChatMemberStatus.BANNED,
+    ):
+
+        data = await get_user(
+            user.id
+        )
+
+        if data and data.get("secret"):
+
+            await update_secret(
+                user.id,
+                False
+            )
+
+
+            if data.get("invite_link"):
+
+                try:
+
+                    await context.bot.revoke_chat_invite_link(
+                        chat_id=SECRET_GROUP_ID,
+                        invite_link=data["invite_link"]
+                    )
+
+                except Exception as e:
+
+                    print(
+                        "Revoke error:",
+                        e
+                    )
+
+
+            await clear_invite(
+                user.id
+            )
+
+
+            try:
+
+                await context.bot.send_message(
+                    user.id,
+                    REMOVED_TEXT
+                )
+
+            except Exception:
+
+                pass
+
+
+            print(
+                "Main Group Leave - Secret Removed:",
+                user.id
+            )
 
 # =========================
 # HANDLERS
@@ -283,7 +384,15 @@ app.add_handler(
 
 app.add_handler(
     ChatMemberHandler(
-        secret_join_check,
+        secret_channel_check,
+        ChatMemberHandler.CHAT_MEMBER
+    )
+)
+
+
+app.add_handler(
+    ChatMemberHandler(
+        main_group_check,
         ChatMemberHandler.CHAT_MEMBER
     )
 )
