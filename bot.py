@@ -295,6 +295,12 @@ async def main_group_check(
 
     member = update.chat_member
 
+    print(
+        "MAIN GROUP UPDATE:",
+        member.chat.id,
+        member.new_chat_member.status
+    )
+
     if member.chat.id not in (
         MAIN_GROUP_1_ID,
         MAIN_GROUP_2_ID
