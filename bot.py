@@ -198,7 +198,17 @@ async def check_access(
                 "Invite revoke error:",
                 e
             )
+try:
+    await context.bot.unban_chat_member(
+        chat_id=SECRET_GROUP_ID,
+        user_id=user.id,
+        only_if_banned=True
+    )
 
+    print("User unbanned:", user.id)
+
+except Exception as e:
+    print("Unban error:", e)
 
     await clear_invite(
         user.id
