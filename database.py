@@ -3,7 +3,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from config import MONGO_URI
 
 
-client = AsyncIOMotorClient(MONGO_URI)
+client = AsyncIOMotorClient(
+    MONGO_URI
+)
 
 db = client.forcejoin
 
@@ -12,10 +14,12 @@ users = db.users
 
 
 # =========================
-# USER
+# ADD USER
 # =========================
 
-async def add_user(user_id: int):
+async def add_user(
+    user_id: int
+):
 
     await users.update_one(
         {
@@ -25,15 +29,20 @@ async def add_user(user_id: int):
             "$setOnInsert": {
                 "_id": user_id,
                 "secret": False,
-                "invite_link": None,
-                "last_messages": []
+                "invite_link": None
             }
         },
         upsert=True
     )
 
 
-async def get_user(user_id: int):
+# =========================
+# GET USER
+# =========================
+
+async def get_user(
+    user_id: int
+):
 
     return await users.find_one(
         {
@@ -69,7 +78,7 @@ async def update_secret(
 
 async def save_invite(
     user_id: int,
-    invite_link: str
+    link: str
 ):
 
     await users.update_one(
@@ -78,13 +87,15 @@ async def save_invite(
         },
         {
             "$set": {
-                "invite_link": invite_link
+                "invite_link": link
             }
         }
     )
 
 
-async def clear_invite(user_id: int):
+async def clear_invite(
+    user_id: int
+):
 
     await users.update_one(
         {
@@ -95,42 +106,4 @@ async def clear_invite(user_id: int):
                 "invite_link": None
             }
         }
-    )
-
-
-# =========================
-# AUTO DELETE
-# =========================
-
-async def save_last_messages(
-    user_id: int,
-    messages: list
-):
-
-    await users.update_one(
-        {
-            "_id": user_id
-        },
-        {
-            "$set": {
-                "last_messages": messages
-            }
-        }
-    )
-
-
-async def get_last_messages(user_id: int):
-
-    data = await users.find_one(
-        {
-            "_id": user_id
-        }
-    )
-
-    if not data:
-        return []
-
-    return data.get(
-        "last_messages",
-        []
     )
