@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import MONGO_URI
 
+
 client = AsyncIOMotorClient(MONGO_URI)
 
 db = client["forcejoin"]
@@ -8,7 +9,12 @@ db = client["forcejoin"]
 users = db["users"]
 
 
+# =========================
+# ADD USER
+# =========================
+
 async def add_user(user_id):
+
     await users.update_one(
         {"_id": user_id},
         {
@@ -22,13 +28,42 @@ async def add_user(user_id):
     )
 
 
+# =========================
+# GET USER
+# =========================
+
 async def get_user(user_id):
+
     return await users.find_one(
         {"_id": user_id}
     )
 
 
-async def save_invite(user_id, invite_link):
+# =========================
+# SECRET ACCESS
+# =========================
+
+async def update_secret(user_id, value):
+
+    await users.update_one(
+        {"_id": user_id},
+        {
+            "$set": {
+                "secret": value
+            }
+        }
+    )
+
+
+# =========================
+# SAVE INVITE LINK
+# =========================
+
+async def save_invite(
+    user_id,
+    invite_link
+):
+
     await users.update_one(
         {"_id": user_id},
         {
@@ -40,34 +75,48 @@ async def save_invite(user_id, invite_link):
     )
 
 
-async def update_secret(user_id, value):
+# =========================
+# GET INVITE LINK
+# =========================
+
+async def get_invite(user_id):
+
+    user = await get_user(user_id)
+
+    if not user:
+        return None
+
+    return user.get("invite_link")
+
+
+# =========================
+# CLEAR INVITE LINK
+# =========================
+
+async def clear_invite(user_id):
+
     await users.update_one(
         {"_id": user_id},
         {
             "$set": {
-                "secret": value
+                "invite_link": None
             }
         }
     )
 
 
-async def clear_invite(user_id):
-    await users.update_one(
-        {"_id": user_id},
-        {
-            "$unset": {
-                "invite_link": ""
-            }
-        }
-    )
-
+# =========================
+# ALL USERS
+# =========================
 
 async def get_all_users():
-    data = users.find()
 
     ids = []
 
-    async for user in data:
-        ids.append(user["_id"])
+    async for user in users.find():
+
+        ids.append(
+            user["_id"]
+        )
 
     return ids
