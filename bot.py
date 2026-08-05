@@ -3,6 +3,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+import asyncio
 
 from telegram.constants import ChatMemberStatus
 
@@ -377,7 +378,65 @@ async def main_group_check(
             )
 
         except Exception:
-            pass   
+            pass 
+# =========================
+# BACKGROUND MEMBERSHIP CHECK
+# =========================
+
+async def membership_checker(app):
+
+    while True:
+
+        users = db.users.find(
+            {
+                "secret": True
+            }
+        )
+
+        async for user in users:
+
+            user_id = user["_id"]
+
+            main1 = await is_member(
+                app.bot,
+                MAIN_GROUP_1_ID,
+                user_id
+            )
+
+            main2 = await is_member(
+                app.bot,
+                MAIN_GROUP_2_ID,
+                user_id
+            )
+
+            if not main1 or not main2:
+
+                try:
+
+                    await app.bot.ban_chat_member(
+                        chat_id=SECRET_CHANNEL_ID,
+                        user_id=user_id
+                    )
+
+                    await app.bot.unban_chat_member(
+                        chat_id=SECRET_CHANNEL_ID,
+                        user_id=user_id
+                    )
+
+                except Exception as e:
+
+                    print(e)
+
+                await update_secret(
+                    user_id,
+                    False
+                )
+
+                await clear_invite(
+                    user_id
+                )
+
+        await asyncio.sleep(30)            
 # =========================
 # HANDLERS
 # =========================
