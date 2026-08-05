@@ -298,12 +298,14 @@ async def monitor_groups(
 
     chat_id = update.chat_member.chat.id
 
+if chat_id == SECRET_GROUP_ID:
+    return
 
-    if chat_id not in (
-        MAIN_GROUP_1_ID,
-        MAIN_GROUP_2_ID
-    ):
-        return
+if chat_id not in (
+    MAIN_GROUP_1_ID,
+    MAIN_GROUP_2_ID
+):
+    return
 
 
     user = update.chat_member.new_chat_member.user
