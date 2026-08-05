@@ -276,7 +276,24 @@ async def main_group_check(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
+print("MAIN UPDATE RECEIVED")
 
+member = update.chat_member
+
+print(
+    "CHAT:",
+    member.chat.id
+)
+
+print(
+    "OLD:",
+    member.old_chat_member.status
+)
+
+print(
+    "NEW:",
+    member.new_chat_member.status
+)
     member = update.chat_member
 
     if member.chat.id not in (
