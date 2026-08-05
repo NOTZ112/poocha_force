@@ -223,9 +223,131 @@ except Exception as e:
 
     await save_invite(
         user.id,
-        invite.invite_link
+# =========================
+# CHECK ACCESS
+# =========================
+
+async def check_access(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    query = update.callback_query
+    await query.answer()
+
+    user = query.from_user
+
+    await add_user(user.id)
+
+    main1 = await is_member(
+        context.bot,
+        MAIN_GROUP_1_ID,
+        user.id
     )
 
+    main2 = await is_member(
+        context.bot,
+        MAIN_GROUP_2_ID,
+        user.id
+    )
+
+    if not main1 or not main2:
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Main Group 1",
+                        url=MAIN_GROUP_1_LINK
+                    )
+                ],
+                [
+                    InlineKeyboardButton(
+                        "📢 Join Main Group 2",
+                        url=MAIN_GROUP_2_LINK
+                    )
+                ]
+            ]
+        )
+
+        await query.message.reply_text(
+            FAILED_TEXT,
+            reply_markup=keyboard
+        )
+
+        return
+
+    data = await get_user(user.id)
+
+    if data and data.get("secret"):
+
+        still_member = await is_member(
+            context.bot,
+            SECRET_GROUP_ID,
+            user.id
+        )
+
+        if still_member:
+
+            await query.message.reply_text(
+                ALREADY_SECRET_TEXT
+            )
+
+            return
+
+        await update_secret(
+            user.id,
+            False
+        )
+
+    if data and data.get("invite_link"):
+
+        try:
+
+            await context.bot.revoke_chat_invite_link(
+                chat_id=SECRET_GROUP_ID,
+                invite_link=data["invite_link"]
+            )
+
+        except Exception as e:
+
+            print(
+                "Invite revoke error:",
+                e
+            )
+
+    await clear_invite(user.id)
+
+    # Unban user before creating new invite
+    try:
+
+        await context.bot.unban_chat_member(
+            chat_id=SECRET_GROUP_ID,
+            user_id=user.id,
+            only_if_banned=True
+        )
+
+        print(
+            "User unbanned:",
+            user.id
+        )
+
+    except Exception as e:
+
+        print(
+            "Unban error:",
+            e
+        )
+
+    invite = await context.bot.create_chat_invite_link(
+        chat_id=SECRET_GROUP_ID,
+        member_limit=1
+    )
+
+    await save_invite(
+        user.id,
+        invite.invite_link
+    )
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -237,7 +359,6 @@ except Exception as e:
             ]
         ]
     )
-
 
     await query.message.reply_text(
         SUCCESS_TEXT,
