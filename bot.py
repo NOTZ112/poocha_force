@@ -214,6 +214,10 @@ async def secret_channel_check(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
+    print(
+        "SECRET UPDATE RECEIVED"
+    )
+
     member = update.chat_member
 
 
