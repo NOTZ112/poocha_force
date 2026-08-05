@@ -24,11 +24,11 @@ Application
 .build()
 )
 
-=========================
+#=========================
 
 CHECK MEMBER
 
-=========================
+#=========================
 
 async def is_member(
 bot,
@@ -58,11 +58,11 @@ except Exception as e:
 
     return False
 
-=========================
+#=========================
 
 START
 
-=========================
+#=========================
 
 async def start(
 update: Update,
@@ -97,11 +97,11 @@ await update.message.reply_text(
     reply_markup=keyboard  
 )
 
-=========================
+#=========================
 
 CHECK ACCESS
 
-=========================
+#=========================
 
 async def check_access(
 update: Update,
@@ -220,11 +220,11 @@ await query.message.reply_text(
     reply_markup=keyboard  
 )
 
-=========================
+#=========================
 
 SECRET GROUP MONITOR
 
-=========================
+#=========================
 
 async def secret_group_monitor(
 update: Update,
@@ -261,11 +261,11 @@ if member.status in (
         member.user.id  
     )
 
-=========================
+#=========================
 
 MAIN GROUP LOCK
 
-=========================
+#=========================
 
 async def monitor_groups(
 update: Update,
@@ -376,11 +376,11 @@ if new_status in (
     except Exception:  
         pass
 
-=========================
+#=========================
 
 BROADCAST
 
-=========================
+#=========================
 
 def is_admin(user_id):
 return user_id in ADMIN_IDS
@@ -432,11 +432,11 @@ await status.edit_text(
     f"Failed : {failed}"  
 )
 
-=========================
+#=========================
 
 HANDLERS
 
-=========================
+#=========================
 
 app.add_handler(
 CommandHandler(
