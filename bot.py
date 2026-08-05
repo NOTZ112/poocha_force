@@ -159,11 +159,11 @@ async def check_access(
 
 
     data = await get_user(
-        user.id
-    )
+    user.id
+)
 
 
-    if data and data.get("secret"):
+if data and data.get("secret"):
 
     still_member = await is_member(
         context.bot,
@@ -185,7 +185,6 @@ async def check_access(
             user.id,
             False
         )
-
 
 
     invite = await context.bot.create_chat_invite_link(
