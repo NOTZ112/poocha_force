@@ -345,6 +345,36 @@ async def main_group_check(
             )
 
 
+            # REMOVE FROM SECRET CHANNEL
+
+            try:
+
+                await context.bot.ban_chat_member(
+                    chat_id=SECRET_GROUP_ID,
+                    user_id=user.id
+                )
+
+
+                await context.bot.unban_chat_member(
+                    chat_id=SECRET_GROUP_ID,
+                    user_id=user.id
+                )
+
+
+                print(
+                    "Removed from Secret Channel:",
+                    user.id
+                )
+
+
+            except Exception as e:
+
+                print(
+                    "Secret remove error:",
+                    e
+                )
+
+
             try:
 
                 await context.bot.send_message(
@@ -361,7 +391,6 @@ async def main_group_check(
                 "Main Group Leave - Secret Removed:",
                 user.id
             )
-
 # =========================
 # HANDLERS
 # =========================
