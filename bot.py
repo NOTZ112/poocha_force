@@ -22,13 +22,6 @@ from database import *
 app = (
     Application.builder()
     .token(BOT_TOKEN)
-    .allowed_updates(
-        [
-            "message",
-            "callback_query",
-            "chat_member"
-        ]
-    )
     .build()
 )
 
@@ -445,4 +438,10 @@ print(
 )
 
 
-app.run_polling()
+app.run_polling(
+    allowed_updates=[
+        "message",
+        "callback_query",
+        "chat_member"
+    ]
+)
