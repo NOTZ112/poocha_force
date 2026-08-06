@@ -1,4 +1,4 @@
-import asyncio
+import logging
 
 from telegram import (
     Update,
@@ -17,8 +17,19 @@ from telegram.ext import (
 )
 
 from config import *
-from database import *
 
+from database import (
+    add_user,
+    get_user,
+    update_secret,
+    save_invite,
+    clear_invite,
+    all_users,
+)
+
+logging.basicConfig(
+    level=logging.INFO
+)
 
 app = (
     Application.builder()
@@ -33,8 +44,8 @@ app = (
 
 async def is_member(
     bot,
-    chat_id: int,
-    user_id: int
+    chat_id,
+    user_id
 ):
 
     try:
@@ -50,10 +61,12 @@ async def is_member(
             ChatMemberStatus.OWNER,
         )
 
-    except Exception:
+    except:
 
         return False
-   # =========================
+
+
+# =========================
 # START
 # =========================
 
@@ -62,17 +75,11 @@ async def start(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
-    user = update.effective_user
-
-    await add_user(
-        user.id
-    )
-
     keyboard = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "🔎 അംഗത്വം പരിശോധിക്കുക",
+                    "✅ Check Access",
                     callback_data="check_access"
                 )
             ]
@@ -83,8 +90,6 @@ async def start(
         START_TEXT,
         reply_markup=keyboard
     )
-
-
 # =========================
 # CHECK ACCESS
 # =========================
@@ -100,9 +105,7 @@ async def check_access(
 
     user = query.from_user
 
-    await add_user(
-        user.id
-    )
+    await add_user(user.id)
 
     main1 = await is_member(
         context.bot,
@@ -142,9 +145,8 @@ async def check_access(
 
         return
 
-    data = await get_user(
-        user.id
-    )
+    data = await get_user(user.id)
+
     if data and data.get("secret"):
 
         still_member = await is_member(
@@ -166,27 +168,6 @@ async def check_access(
             False
         )
 
-
-    if data and data.get("invite_link"):
-
-        try:
-
-            await context.bot.revoke_chat_invite_link(
-                chat_id=SECRET_CHANNEL_ID,
-                invite_link=data["invite_link"]
-            )
-
-        except Exception as e:
-
-            print(
-                "Invite revoke error:",
-                e
-            )
-
-    await clear_invite(
-        user.id
-    )
-
     invite = await context.bot.create_chat_invite_link(
         chat_id=SECRET_CHANNEL_ID,
         member_limit=1,
@@ -202,7 +183,7 @@ async def check_access(
         [
             [
                 InlineKeyboardButton(
-                    "🔐 Secret Channel Join",
+                    "🔐 Secret Channel",
                     url=invite.invite_link
                 )
             ]
@@ -212,9 +193,11 @@ async def check_access(
     await query.message.reply_text(
         SUCCESS_TEXT,
         reply_markup=keyboard
-        )
-  # =========================
-# SECRET CHANNEL EVENTS
+    )   
+import asyncio
+
+# =========================
+# SECRET CHANNEL JOIN
 # =========================
 
 async def secret_channel_check(
@@ -227,14 +210,9 @@ async def secret_channel_check(
     if member.chat.id != SECRET_CHANNEL_ID:
         return
 
-    user = member.from_user
-
     status = member.new_chat_member.status
 
-    print(
-        "SECRET STATUS:",
-        status
-    )
+    user = member.new_chat_member.user
 
     if status in (
         ChatMemberStatus.MEMBER,
@@ -248,182 +226,116 @@ async def secret_channel_check(
         )
 
         print(
-            "Secret Channel Joined:",
-            user.id
-        )
-
-        return
-
-    if status in (
-        ChatMemberStatus.LEFT,
-        ChatMemberStatus.BANNED,
-    ):
-
-        await update_secret(
-            user.id,
-            False
-        )
-
-        await clear_invite(
-            user.id
-        )
-
-        print(
-            "Secret Channel Left:",
+            "Secret Joined:",
             user.id
         )
 
 
 # =========================
-# BACKGROUND MEMBERSHIP CHECK
+# AUTO REMOVE CHECKER
 # =========================
 
-async def membership_checker(application):
+async def auto_remove_checker(
+    app: Application
+):
 
     while True:
 
-        cursor = users.find(
-            {
-                "secret": True
-            }
-        )
+        try:
 
-        async for data in cursor:
+            users = await all_users()
 
-            user_id = data["_id"]
+            for user in users:
 
-            main1 = await is_member(
-                application.bot,
-                MAIN_GROUP_1_ID,
-                user_id
-            )
+                if not user.get("secret"):
+                    continue
 
-            main2 = await is_member(
-                application.bot,
-                MAIN_GROUP_2_ID,
-                user_id
-            )
+                uid = user["_id"]
 
-            if not main1 or not main2:
-
-                print(
-                    "Removing:",
-                    user_id
+                main1 = await is_member(
+                    app.bot,
+                    MAIN_GROUP_1_ID,
+                    uid
                 )
+
+                main2 = await is_member(
+                    app.bot,
+                    MAIN_GROUP_2_ID,
+                    uid
+                )
+
+                if main1 and main2:
+                    continue
 
                 try:
 
-                    await application.bot.ban_chat_member(
-                        chat_id=SECRET_CHANNEL_ID,
-                        user_id=user_id
+                    await app.bot.ban_chat_member(
+                        SECRET_CHANNEL_ID,
+                        uid
+                    )
+
+                    await app.bot.unban_chat_member(
+                        SECRET_CHANNEL_ID,
+                        uid,
+                        only_if_banned=True
                     )
 
                 except Exception as e:
 
-                    print(
-                        "Ban Error:",
-                        e
-                    )
+                    print(e)
 
                 await update_secret(
-                    user_id,
+                    uid,
                     False
                 )
 
                 await clear_invite(
-                    user_id
+                    uid
                 )
 
-        await asyncio.sleep(30)  
+                try:
+
+                    await app.bot.send_message(
+                        uid,
+                        REMOVED_TEXT
+                    )
+
+                except:
+                    pass
+
+        except Exception as e:
+
+            print(e)
+
+        await asyncio.sleep(30)
 # =========================
 # START BACKGROUND TASK
 # =========================
 
-job_queue = app.job_queue
-
-job_queue.run_repeating(
-    lambda context: asyncio.create_task(
-        membership_checker(app)
-    ),
-    interval=30,
-    first=5,
-)
-# =========================
-# MAIN GROUP LEAVE CHECK
-# =========================
-
-async def main_group_check(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
+async def post_init(
+    application: Application
 ):
 
-    member = update.chat_member
+    application.create_task(
+        auto_remove_checker(application)
+    )
 
-    if member.chat.id not in (
-        MAIN_GROUP_1_ID,
-        MAIN_GROUP_2_ID
-    ):
-        return
-
-    old_status = member.old_chat_member.status
-    new_status = member.new_chat_member.status
-
-    if (
-        old_status in (
-            ChatMemberStatus.MEMBER,
-            ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER,
-        )
-        and
-        new_status in (
-            ChatMemberStatus.LEFT,
-            ChatMemberStatus.BANNED,
-        )
-    ):
-
-        user = member.from_user
-
-        print("MAIN GROUP LEFT:", user.id)
-
-        await update_secret(
-            user.id,
-            False
-        )
-
-        try:
-            await context.bot.ban_chat_member(
-                chat_id=SECRET_CHANNEL_ID,
-                user_id=user.id
-            )
-
-            await context.bot.unban_chat_member(
-                chat_id=SECRET_CHANNEL_ID,
-                user_id=user.id,
-                only_if_banned=True
-            )
-
-            print("Removed from Secret Channel:", user.id)
-
-        except Exception as e:
-            print("Remove error:", e)
-
-        try:
-            await context.bot.send_message(
-                chat_id=user.id,
-                text=REMOVED_TEXT
-            )
-        except:
-            pass
 
 # =========================
-# HANDLERS
+# APPLICATION
 # =========================
 
 app = (
     Application.builder()
     .token(BOT_TOKEN)
+    .post_init(post_init)
     .build()
 )
+
+
+# =========================
+# HANDLERS
+# =========================
 
 app.add_handler(
     CommandHandler(
@@ -446,15 +358,9 @@ app.add_handler(
     )
 )
 
-app.add_handler(
-    ChatMemberHandler(
-        main_group_check,
-        ChatMemberHandler.CHAT_MEMBER
-    )
-)
-print(
-    "Bot Started"
-)
+
+print("Bot Started")
+
 
 app.run_polling(
     allowed_updates=[
@@ -463,4 +369,4 @@ app.run_polling(
         "chat_member",
     ],
     drop_pending_updates=True
-)
+)  
