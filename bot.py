@@ -348,7 +348,72 @@ job_queue.run_repeating(
     interval=30,
     first=5,
 )
+# =========================
+# MAIN GROUP LEAVE CHECK
+# =========================
 
+async def main_group_check(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    member = update.chat_member
+
+    if member.chat.id not in (
+        MAIN_GROUP_1_ID,
+        MAIN_GROUP_2_ID
+    ):
+        return
+
+    old_status = member.old_chat_member.status
+    new_status = member.new_chat_member.status
+
+    if (
+        old_status in (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER,
+        )
+        and
+        new_status in (
+            ChatMemberStatus.LEFT,
+            ChatMemberStatus.BANNED,
+        )
+    ):
+
+        user = member.from_user
+
+        print("MAIN GROUP LEFT:", user.id)
+
+        await update_secret(
+            user.id,
+            False
+        )
+
+        try:
+            await context.bot.ban_chat_member(
+                chat_id=SECRET_CHANNEL_ID,
+                user_id=user.id
+            )
+
+            await context.bot.unban_chat_member(
+                chat_id=SECRET_CHANNEL_ID,
+                user_id=user.id,
+                only_if_banned=True
+            )
+
+            print("Removed from Secret Channel:", user.id)
+
+        except Exception as e:
+            print("Remove error:", e)
+
+        try:
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=REMOVED_TEXT
+            )
+        except:
+            pass
 
 # =========================
 # HANDLERS
@@ -381,6 +446,12 @@ app.add_handler(
     )
 )
 
+app.add_handler(
+    ChatMemberHandler(
+        main_group_check,
+        ChatMemberHandler.CHAT_MEMBER
+    )
+)
 print(
     "Bot Started"
 )
