@@ -350,7 +350,12 @@ async def post_init(application):
 # HANDLERS
 # =========================
 
-app.post_init = post_init
+app = (
+    Application.builder()
+    .token(BOT_TOKEN)
+    .post_init(post_init)
+    .build()
+)
 
 app.add_handler(
     CommandHandler(
@@ -372,7 +377,6 @@ app.add_handler(
         ChatMemberHandler.CHAT_MEMBER
     )
 )
-
 
 print(
     "Bot Started"
