@@ -357,7 +357,6 @@ job_queue.run_repeating(
 app = (
     Application.builder()
     .token(BOT_TOKEN)
-    .post_init(post_init)
     .build()
 )
 
