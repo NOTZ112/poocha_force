@@ -339,11 +339,15 @@ async def membership_checker(application):
 # START BACKGROUND TASK
 # =========================
 
-async def post_init(application):
+job_queue = app.job_queue
 
-    application.create_task(
-        membership_checker(application)
-    )
+job_queue.run_repeating(
+    lambda context: asyncio.create_task(
+        membership_checker(app)
+    ),
+    interval=30,
+    first=5,
+)
 
 
 # =========================
