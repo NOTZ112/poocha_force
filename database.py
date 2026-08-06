@@ -1,30 +1,16 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-
 from config import MONGO_URI
 
-
-client = AsyncIOMotorClient(
-    MONGO_URI
-)
+client = AsyncIOMotorClient(MONGO_URI)
 
 db = client.forcejoin
-
-
 users = db.users
 
 
-# =========================
-# ADD USER
-# =========================
-
-async def add_user(
-    user_id: int
-):
+async def add_user(user_id: int):
 
     await users.update_one(
-        {
-            "_id": user_id
-        },
+        {"_id": user_id},
         {
             "$setOnInsert": {
                 "_id": user_id,
@@ -36,13 +22,7 @@ async def add_user(
     )
 
 
-# =========================
-# GET USER
-# =========================
-
-async def get_user(
-    user_id: int
-):
+async def get_user(user_id: int):
 
     return await users.find_one(
         {
@@ -50,10 +30,6 @@ async def get_user(
         }
     )
 
-
-# =========================
-# SECRET ACCESS
-# =========================
 
 async def update_secret(
     user_id: int,
@@ -71,10 +47,6 @@ async def update_secret(
         }
     )
 
-
-# =========================
-# INVITE LINK
-# =========================
 
 async def save_invite(
     user_id: int,
@@ -107,3 +79,10 @@ async def clear_invite(
             }
         }
     )
+
+
+async def all_users():
+
+    cursor = users.find({})
+
+    return await cursor.to_list(None)
