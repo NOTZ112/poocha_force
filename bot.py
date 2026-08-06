@@ -167,7 +167,7 @@ async def check_access(
     )
 
 
-    # Already active access
+        # Already active access
 
     if data and data.get("secret"):
 
@@ -193,29 +193,31 @@ async def check_access(
             user.id,
             False
         )
-# =========================
-# REMOVE OLD BAN
-# =========================
 
-try:
 
-    await context.bot.unban_chat_member(
-        SECRET_CHANNEL_ID,
-        user.id,
-        only_if_banned=True
-    )
+    # =========================
+    # REMOVE OLD BAN
+    # =========================
 
-    print(
-        "Unbanned:",
-        user.id
-    )
+    try:
 
-except Exception as e:
+        await context.bot.unban_chat_member(
+            SECRET_CHANNEL_ID,
+            user.id,
+            only_if_banned=True
+        )
 
-    print(
-        "Unban Error:",
-        e
-    )
+        print(
+            "Unbanned:",
+            user.id
+        )
+
+    except Exception as e:
+
+        print(
+            "Unban Error:",
+            e
+        )
 
 
     # CREATE NEW SECRET INVITE
