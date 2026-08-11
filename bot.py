@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================================================
-# ACTIVE MEMBER STATUSES
+# ACTIVE STATUS
 # =========================================================
 
 ACTIVE_STATUSES = (
@@ -56,7 +56,20 @@ ACTIVE_STATUSES = (
 # CHECK MEMBER
 # =========================================================
 
-async def is_member(bot, chat_id, user_id):
+async def is_member(
+    bot,
+    chat_id,
+    user_id,
+):
+    """
+    Returns:
+        True  = user is member
+        False = user is definitely not member
+        None  = Telegram/API error
+
+    IMPORTANT:
+    API error must NOT be treated as False.
+    """
 
     try:
 
@@ -74,7 +87,16 @@ async def is_member(bot, chat_id, user_id):
             status,
         )
 
-        return status in ACTIVE_STATUSES
+        if status in ACTIVE_STATUSES:
+            return True
+
+        if status in (
+            ChatMemberStatus.LEFT,
+            ChatMemberStatus.BANNED,
+        ):
+            return False
+
+        return False
 
     except Exception as e:
 
@@ -85,8 +107,8 @@ async def is_member(bot, chat_id, user_id):
             e,
         )
 
-        # IMPORTANT:
-        # Telegram/API error != user left
+        # VERY IMPORTANT
+        # API error != user left
         return None
 
 
@@ -100,23 +122,23 @@ async def remove_from_secret(
     invite_link=None,
 ):
 
-    bot = application.bot
-
     logger.warning(
         "REMOVE FROM SECRET START | user=%s",
         user_id,
     )
 
-    # -----------------------------------------------------
+    bot = application.bot
+
+    # =====================================================
     # REVOKE INVITE
-    # -----------------------------------------------------
+    # =====================================================
 
     if invite_link:
 
         try:
 
             await bot.revoke_chat_invite_link(
-                chat_id=SECRET_CHANNEL_ID,
+                chat_id=SECRET_GROUP_ID,
                 invite_link=invite_link,
             )
 
@@ -133,16 +155,14 @@ async def remove_from_secret(
                 e,
             )
 
-    # -----------------------------------------------------
+    # =====================================================
     # CHECK SECRET GROUP
-    # -----------------------------------------------------
-
-    secret_status = None
+    # =====================================================
 
     try:
 
         member = await bot.get_chat_member(
-            chat_id=SECRET_CHANNEL_ID,
+            chat_id=SECRET_GROUP_ID,
             user_id=user_id,
         )
 
@@ -156,58 +176,65 @@ async def remove_from_secret(
 
     except Exception as e:
 
-        logger.warning(
-            "SECRET MEMBER CHECK FAILED | user=%s | %s",
+        logger.error(
+            "SECRET MEMBER CHECK ERROR | user=%s | %s",
             user_id,
             e,
         )
 
-    # -----------------------------------------------------
-    # REMOVE USER
-    # -----------------------------------------------------
+        # Do NOT continue with ban if API failed
+        return
+
+    # =====================================================
+    # REMOVE ONLY IF ACTIVE
+    # =====================================================
 
     if secret_status in ACTIVE_STATUSES:
 
         try:
 
+            # Ban user from Secret Group
             await bot.ban_chat_member(
-                chat_id=SECRET_CHANNEL_ID,
+                chat_id=SECRET_GROUP_ID,
                 user_id=user_id,
             )
 
-            logger.info(
+            logger.warning(
                 "SECRET GROUP BAN SUCCESS | user=%s",
                 user_id,
             )
-
-            # Immediately unban.
-            # This removes the user but allows future joining.
-
-            try:
-
-                await bot.unban_chat_member(
-                    chat_id=SECRET_CHANNEL_ID,
-                    user_id=user_id,
-                    only_if_banned=True,
-                )
-
-                logger.info(
-                    "SECRET GROUP UNBAN SUCCESS | user=%s",
-                    user_id,
-                )
-
-            except Exception as e:
-
-                logger.warning(
-                    "SECRET GROUP UNBAN ERROR | user=%s | %s",
-                    user_id,
-                    e,
-                )
 
         except Exception as e:
 
             logger.error(
                 "SECRET GROUP BAN ERROR | user=%s | %s",
+                user_id,
+                e,
+            )
+
+            return
+
+        # =================================================
+        # IMMEDIATELY UNBAN
+        # =================================================
+
+        try:
+
+            await bot.unban_chat_member(
+                chat_id=SECRET_GROUP_ID,
+                user_id=user_id,
+                only_if_banned=True,
+            )
+
+            logger.info(
+                "SECRET GROUP UNBAN SUCCESS | user=%s",
+                user_id,
+            )
+
+        except Exception as e:
+
+            logger.error(
+                "SECRET GROUP UNBAN ERROR | user=%s | %s",
                 user_id,
                 e,
             )
@@ -219,9 +246,9 @@ async def remove_from_secret(
             user_id,
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # CLEAR DATABASE
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
@@ -247,9 +274,9 @@ async def remove_from_secret(
             e,
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # NOTIFY USER
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
@@ -270,11 +297,6 @@ async def remove_from_secret(
             user_id,
             e,
         )
-
-    logger.warning(
-        "REMOVE FROM SECRET COMPLETE | user=%s",
-        user_id,
-    )
 
 
 # =========================================================
@@ -330,15 +352,17 @@ async def check_access(
 
     await query.answer()
 
-    user_id = query.from_user.id
+    user = query.from_user
+
+    user_id = user.id
 
     await add_user(
         user_id,
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # MAIN GROUP 1
-    # -----------------------------------------------------
+    # =====================================================
 
     main1 = await is_member(
         context.bot,
@@ -346,9 +370,22 @@ async def check_access(
         user_id,
     )
 
-    # -----------------------------------------------------
+    # =====================================================
+    # API ERROR
+    # =====================================================
+
+    if main1 is None:
+
+        await query.message.reply_text(
+            "⚠️ ഇപ്പോൾ membership പരിശോധിക്കാൻ കഴിഞ്ഞില്ല.\n"
+            "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക."
+        )
+
+        return
+
+    # =====================================================
     # MAIN GROUP 2
-    # -----------------------------------------------------
+    # =====================================================
 
     main2 = await is_member(
         context.bot,
@@ -356,29 +393,29 @@ async def check_access(
         user_id,
     )
 
+    # =====================================================
+    # API ERROR
+    # =====================================================
+
+    if main2 is None:
+
+        await query.message.reply_text(
+            "⚠️ ഇപ്പോൾ membership പരിശോധിക്കാൻ കഴിഞ്ഞില്ല.\n"
+            "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക."
+        )
+
+        return
+
     logger.info(
-        "MANUAL CHECK | user=%s | main1=%s | main2=%s",
+        "ACCESS CHECK | user=%s | main1=%s | main2=%s",
         user_id,
         main1,
         main2,
     )
 
-    # -----------------------------------------------------
-    # API ERROR
-    # -----------------------------------------------------
-
-    if main1 is None or main2 is None:
-
-        await query.message.reply_text(
-            "⚠️ ഇപ്പോൾ membership check ചെയ്യാൻ കഴിഞ്ഞില്ല.\n\n"
-            "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും 🔄 Check Again അമർത്തുക."
-        )
-
-        return
-
-    # -----------------------------------------------------
+    # =====================================================
     # NOT JOINED BOTH
-    # -----------------------------------------------------
+    # =====================================================
 
     if not main1 or not main2:
 
@@ -412,30 +449,31 @@ async def check_access(
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # GET USER DATA
-    # -----------------------------------------------------
+    # =====================================================
 
     data = await get_user(
         user_id,
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # ALREADY ACTIVE
-    # -----------------------------------------------------
+    # =====================================================
 
     if data and data.get("secret"):
 
         still_member = await is_member(
             context.bot,
-            SECRET_CHANNEL_ID,
+            SECRET_GROUP_ID,
             user_id,
         )
 
+        # API ERROR
         if still_member is None:
 
             await query.message.reply_text(
-                "⚠️ Secret Group membership check ചെയ്യാൻ കഴിഞ്ഞില്ല.\n"
+                "⚠️ Secret Group membership പരിശോധിക്കാൻ കഴിഞ്ഞില്ല.\n"
                 "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക."
             )
 
@@ -449,19 +487,20 @@ async def check_access(
 
             return
 
+        # User is not actually inside
         await update_secret(
             user_id,
             False,
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # REMOVE OLD BAN
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
         await context.bot.unban_chat_member(
-            chat_id=SECRET_CHANNEL_ID,
+            chat_id=SECRET_GROUP_ID,
             user_id=user_id,
             only_if_banned=True,
         )
@@ -479,48 +518,14 @@ async def check_access(
             e,
         )
 
-    # -----------------------------------------------------
-    # REVOKE OLD INVITE
-    # -----------------------------------------------------
-
-    old_invite = None
-
-    if data:
-
-        old_invite = data.get(
-            "invite_link"
-        )
-
-    if old_invite:
-
-        try:
-
-            await context.bot.revoke_chat_invite_link(
-                chat_id=SECRET_CHANNEL_ID,
-                invite_link=old_invite,
-            )
-
-            logger.info(
-                "OLD INVITE REVOKED | user=%s",
-                user_id,
-            )
-
-        except Exception as e:
-
-            logger.info(
-                "OLD INVITE REVOKE SKIPPED | user=%s | %s",
-                user_id,
-                e,
-            )
-
-    # -----------------------------------------------------
+    # =====================================================
     # CREATE SINGLE USE INVITE
-    # -----------------------------------------------------
+    # =====================================================
 
     try:
 
         invite = await context.bot.create_chat_invite_link(
-            chat_id=SECRET_CHANNEL_ID,
+            chat_id=SECRET_GROUP_ID,
             member_limit=1,
         )
 
@@ -543,14 +548,14 @@ async def check_access(
         )
 
         await query.message.reply_text(
-            "❌ Invite link create ചെയ്യാൻ കഴിഞ്ഞില്ല."
+            "❌ Invite link create ചെയ്യാൻ കഴിഞ്ഞില്ല.",
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # SEND INVITE
-    # -----------------------------------------------------
+    # =====================================================
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -573,7 +578,7 @@ async def check_access(
 # SECRET GROUP MEMBER UPDATE
 # =========================================================
 
-async def secret_channel_check(
+async def secret_group_check(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ):
@@ -585,7 +590,7 @@ async def secret_channel_check(
 
     chat_id = member_update.chat.id
 
-    if chat_id != SECRET_CHANNEL_ID:
+    if chat_id != SECRET_GROUP_ID:
         return
 
     user = member_update.new_chat_member.user
@@ -598,9 +603,9 @@ async def secret_channel_check(
         status,
     )
 
-    # -----------------------------------------------------
-    # JOINED
-    # -----------------------------------------------------
+    # =====================================================
+    # USER JOINED
+    # =====================================================
 
     if status in ACTIVE_STATUSES:
 
@@ -631,9 +636,9 @@ async def main_group_check(
 
     chat_id = member_update.chat.id
 
-    # -----------------------------------------------------
+    # =====================================================
     # ONLY MAIN GROUPS
-    # -----------------------------------------------------
+    # =====================================================
 
     if chat_id not in (
         MAIN_GROUP_1_ID,
@@ -652,9 +657,9 @@ async def main_group_check(
         status,
     )
 
-    # -----------------------------------------------------
+    # =====================================================
     # ONLY LEFT / BANNED
-    # -----------------------------------------------------
+    # =====================================================
 
     if status not in (
         ChatMemberStatus.LEFT,
@@ -670,9 +675,9 @@ async def main_group_check(
         user_id,
     )
 
-    # -----------------------------------------------------
-    # CHECK BOTH MAIN GROUPS
-    # -----------------------------------------------------
+    # =====================================================
+    # CHECK MAIN GROUP 1
+    # =====================================================
 
     main1 = await is_member(
         context.bot,
@@ -680,11 +685,35 @@ async def main_group_check(
         user_id,
     )
 
+    # API ERROR
+    if main1 is None:
+
+        logger.warning(
+            "LEAVE CHECK SKIPPED | MAIN1 API ERROR | user=%s",
+            user_id,
+        )
+
+        return
+
+    # =====================================================
+    # CHECK MAIN GROUP 2
+    # =====================================================
+
     main2 = await is_member(
         context.bot,
         MAIN_GROUP_2_ID,
         user_id,
     )
+
+    # API ERROR
+    if main2 is None:
+
+        logger.warning(
+            "LEAVE CHECK SKIPPED | MAIN2 API ERROR | user=%s",
+            user_id,
+        )
+
+        return
 
     logger.info(
         "ACCESS CHECK AFTER LEAVE | user=%s | main1=%s | main2=%s",
@@ -693,22 +722,9 @@ async def main_group_check(
         main2,
     )
 
-    # -----------------------------------------------------
-    # API ERROR
-    # -----------------------------------------------------
-
-    if main1 is None or main2 is None:
-
-        logger.warning(
-            "LEAVE CHECK SKIPPED DUE TO API ERROR | user=%s",
-            user_id,
-        )
-
-        return
-
-    # -----------------------------------------------------
-    # STILL IN BOTH
-    # -----------------------------------------------------
+    # =====================================================
+    # STILL BOTH
+    # =====================================================
 
     if main1 and main2:
 
@@ -719,9 +735,9 @@ async def main_group_check(
 
         return
 
-    # -----------------------------------------------------
-    # DATABASE
-    # -----------------------------------------------------
+    # =====================================================
+    # GET DATABASE
+    # =====================================================
 
     data = await get_user(
         user_id,
@@ -745,14 +761,14 @@ async def main_group_check(
 
         return
 
+    # =====================================================
+    # REMOVE
+    # =====================================================
+
     logger.warning(
         "ACCESS LOST | user=%s",
         user_id,
     )
-
-    # -----------------------------------------------------
-    # REMOVE
-    # -----------------------------------------------------
 
     await remove_from_secret(
         context.application,
@@ -793,9 +809,9 @@ async def auto_remove_checker(
 
                 checked += 1
 
-                # -------------------------------------------------
+                # =================================================
                 # MAIN GROUP 1
-                # -------------------------------------------------
+                # =================================================
 
                 main1 = await is_member(
                     application.bot,
@@ -803,15 +819,41 @@ async def auto_remove_checker(
                     user_id,
                 )
 
-                # -------------------------------------------------
+                # =================================================
+                # API ERROR
+                # =================================================
+
+                if main1 is None:
+
+                    logger.warning(
+                        "AUTO CHECK SKIPPED | MAIN1 API ERROR | user=%s",
+                        user_id,
+                    )
+
+                    continue
+
+                # =================================================
                 # MAIN GROUP 2
-                # -------------------------------------------------
+                # =================================================
 
                 main2 = await is_member(
                     application.bot,
                     MAIN_GROUP_2_ID,
                     user_id,
                 )
+
+                # =================================================
+                # API ERROR
+                # =================================================
+
+                if main2 is None:
+
+                    logger.warning(
+                        "AUTO CHECK SKIPPED | MAIN2 API ERROR | user=%s",
+                        user_id,
+                    )
+
+                    continue
 
                 logger.info(
                     "AUTO CHECK | user=%s | main1=%s | main2=%s",
@@ -820,29 +862,17 @@ async def auto_remove_checker(
                     main2,
                 )
 
-                # -------------------------------------------------
-                # API ERROR = DO NOTHING
-                # -------------------------------------------------
-
-                if main1 is None or main2 is None:
-
-                    logger.warning(
-                        "AUTO CHECK SKIPPED | API ERROR | user=%s",
-                        user_id,
-                    )
-
-                    continue
-
-                # -------------------------------------------------
+                # =================================================
                 # BOTH OK
-                # -------------------------------------------------
+                # =================================================
 
                 if main1 and main2:
+
                     continue
 
-                # -------------------------------------------------
-                # ONE GROUP LEFT
-                # -------------------------------------------------
+                # =================================================
+                # ACCESS LOST
+                # =================================================
 
                 logger.warning(
                     "AUTO REMOVE DETECTED | user=%s",
@@ -860,14 +890,6 @@ async def auto_remove_checker(
                 checked,
             )
 
-        except asyncio.CancelledError:
-
-            logger.info(
-                "AUTO CHECKER CANCELLED"
-            )
-
-            raise
-
         except Exception as e:
 
             logger.exception(
@@ -875,17 +897,11 @@ async def auto_remove_checker(
                 e,
             )
 
-        try:
+        # =====================================================
+        # EVERY 30 SECONDS
+        # =====================================================
 
-            await asyncio.sleep(30)
-
-        except asyncio.CancelledError:
-
-            logger.info(
-                "AUTO CHECKER SLEEP CANCELLED"
-            )
-
-            raise
+        await asyncio.sleep(30)
 
 
 # =========================================================
@@ -896,55 +912,14 @@ async def post_init(
     application: Application,
 ):
 
-    task = asyncio.create_task(
+    application.create_task(
         auto_remove_checker(
             application,
         )
     )
 
-    application.bot_data[
-        "auto_checker_task"
-    ] = task
-
     logger.info(
         "BACKGROUND CHECKER TASK CREATED"
-    )
-
-
-# =========================================================
-# POST SHUTDOWN
-# =========================================================
-
-async def post_shutdown(
-    application: Application,
-):
-
-    task = application.bot_data.get(
-        "auto_checker_task"
-    )
-
-    if not task:
-        return
-
-    if task.done():
-        return
-
-    logger.info(
-        "STOPPING BACKGROUND CHECKER..."
-    )
-
-    task.cancel()
-
-    try:
-
-        await task
-
-    except asyncio.CancelledError:
-
-        pass
-
-    logger.info(
-        "BACKGROUND CHECKER STOPPED"
     )
 
 
@@ -956,13 +931,12 @@ app = (
     Application.builder()
     .token(BOT_TOKEN)
     .post_init(post_init)
-    .post_shutdown(post_shutdown)
     .build()
 )
 
 
 # =========================================================
-# HANDLERS
+# START
 # =========================================================
 
 app.add_handler(
@@ -973,6 +947,10 @@ app.add_handler(
 )
 
 
+# =========================================================
+# CHECK ACCESS
+# =========================================================
+
 app.add_handler(
     CallbackQueryHandler(
         check_access,
@@ -981,13 +959,21 @@ app.add_handler(
 )
 
 
+# =========================================================
+# SECRET GROUP
+# =========================================================
+
 app.add_handler(
     ChatMemberHandler(
-        secret_channel_check,
+        secret_group_check,
         ChatMemberHandler.CHAT_MEMBER,
     )
 )
 
+
+# =========================================================
+# MAIN GROUPS
+# =========================================================
 
 app.add_handler(
     ChatMemberHandler(
@@ -998,7 +984,7 @@ app.add_handler(
 
 
 # =========================================================
-# START
+# START BOT
 # =========================================================
 
 logger.info(
@@ -1013,4 +999,4 @@ app.run_polling(
         "chat_member",
     ],
     drop_pending_updates=True,
-    )
+)
