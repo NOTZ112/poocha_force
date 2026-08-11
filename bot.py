@@ -364,70 +364,60 @@ async def auto_remove_checker(
 
                 # REMOVE FROM SECRET CHANNEL
 
-                try:
+try:
 
-                    await application.bot.ban_chat_member(
-                        SECRET_CHANNEL_ID,
-                        uid
-                    )
+    await application.bot.ban_chat_member(
+        chat_id=SECRET_CHANNEL_ID,
+        user_id=uid
+    )
 
+    print(
+        "Banned from Secret:",
+        uid
+    )
 
-                    await application.bot.unban_chat_member(
-                        SECRET_CHANNEL_ID,
-                        uid,
-                        only_if_banned=True
-                    )
+    await asyncio.sleep(1)
 
+    await application.bot.unban_chat_member(
+        chat_id=SECRET_CHANNEL_ID,
+        user_id=uid,
+        only_if_banned=True
+    )
 
-                    print(
-                        "Removed Secret:",
-                        uid
-                    )
+    print(
+        "Removed Secret:",
+        uid
+    )
 
+except Exception as e:
 
-                except Exception as e:
-
-                    print(
-                        "Remove Error:",
-                        e
-                    )
-
-
-
-                await update_secret(
-                    uid,
-                    False
-                )
+    print(
+        "Remove Error:",
+        uid,
+        repr(e)
+    )
 
 
-                await clear_invite(
-                    uid
-                )
+await update_secret(
+    uid,
+    False
+)
+
+await clear_invite(
+    uid
+)
 
 
-                try:
+try:
 
-                    await application.bot.send_message(
-                        uid,
-                        REMOVED_TEXT
-                    )
+    await application.bot.send_message(
+        uid,
+        REMOVED_TEXT
+    )
 
-                except:
+except:
 
-                    pass
-
-
-
-        except Exception as e:
-
-            print(
-                "Checker Error:",
-                e
-            )
-
-
-
-        await asyncio.sleep(30)
+    pass
 
 
 
