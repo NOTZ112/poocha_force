@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import re
+import random
 
 from telegram import (
     Update,
@@ -16,6 +17,12 @@ from telegram.ext import (
     CallbackQueryHandler,
     ChatMemberHandler,
     ContextTypes,
+)
+
+from telegram.error import (
+    RetryAfter,
+    TimedOut,
+    NetworkError,
 )
 
 from config import *
@@ -36,7 +43,7 @@ from database import (
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-    level=logging.INFO,
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
 )
 
 logger = logging.getLogger(__name__)
@@ -54,11 +61,140 @@ ACTIVE_STATUSES = (
 
 
 # =========================================================
+# BULK / API SETTINGS
+# =========================================================
+
+# ഒരേസമയം ഇത്ര Telegram API requests മാത്രം
+API_CONCURRENCY = 10
+
+# API error വന്നാൽ maximum retries
+API_RETRIES = 4
+
+# Auto checker-ൽ ഒരാൾ കഴിഞ്ഞ് ചെറിയ delay
+CHECK_DELAY = 0.08
+
+# Broadcast delay
+BROADCAST_DELAY = 0.08
+
+
+# =========================================================
+# API SEMAPHORE
+# =========================================================
+
+api_semaphore = asyncio.Semaphore(
+    API_CONCURRENCY
+)
+
+
+# =========================================================
+# USER REMOVE LOCK
+# =========================================================
+
+remove_locks = {}
+
+remove_locks_guard = asyncio.Lock()
+
+
+async def get_remove_lock(user_id: int):
+
+    async with remove_locks_guard:
+
+        if user_id not in remove_locks:
+
+            remove_locks[user_id] = asyncio.Lock()
+
+        return remove_locks[user_id]
+
+
+# =========================================================
 # ADMIN CHECK
 # =========================================================
 
 def is_admin(user_id: int) -> bool:
+
     return user_id in ADMIN_IDS
+
+
+# =========================================================
+# SAFE TELEGRAM CALL
+# =========================================================
+
+async def safe_telegram_call(
+    func,
+    *args,
+    **kwargs,
+):
+
+    delay = 1
+
+    for attempt in range(
+        API_RETRIES
+    ):
+
+        try:
+
+            async with api_semaphore:
+
+                return await func(
+                    *args,
+                    **kwargs,
+                )
+
+        except RetryAfter as e:
+
+            wait_time = int(
+                getattr(
+                    e,
+                    "retry_after",
+                    delay,
+                )
+            )
+
+            wait_time += random.uniform(
+                0.2,
+                0.8,
+            )
+
+            logger.warning(
+                "TELEGRAM FLOOD LIMIT | waiting=%s",
+                wait_time,
+            )
+
+            await asyncio.sleep(
+                wait_time
+            )
+
+        except (
+            TimedOut,
+            NetworkError,
+        ) as e:
+
+            logger.warning(
+                "TELEGRAM NETWORK ERROR | attempt=%s/%s | %s",
+                attempt + 1,
+                API_RETRIES,
+                e,
+            )
+
+            if attempt == API_RETRIES - 1:
+
+                raise
+
+            await asyncio.sleep(
+                delay + random.uniform(
+                    0,
+                    0.5,
+                )
+            )
+
+            delay = min(
+                delay * 2,
+                10,
+            )
+
+        except Exception:
+
+            raise
 
 
 # =========================================================
@@ -73,7 +209,8 @@ async def is_member(
 
     try:
 
-        member = await bot.get_chat_member(
+        member = await safe_telegram_call(
+            bot.get_chat_member,
             chat_id=chat_id,
             user_id=user_id,
         )
@@ -107,7 +244,7 @@ async def is_member(
             e,
         )
 
-        # API error is NOT equal to user left
+        # API error ≠ user left
         return None
 
 
@@ -121,174 +258,187 @@ async def remove_from_secret(
     invite_link=None,
 ):
 
-    logger.warning(
-        "REMOVE FROM SECRET START | user=%s",
-        user_id,
+    lock = await get_remove_lock(
+        user_id
     )
 
-    bot = application.bot
+    # ഒരേ user-നെ രണ്ടുതവണ ഒരേസമയം remove ചെയ്യാതിരിക്കാൻ
+    async with lock:
 
-    # =====================================================
-    # REVOKE INVITE
-    # =====================================================
+        logger.warning(
+            "REMOVE FROM SECRET START | user=%s",
+            user_id,
+        )
 
-    if invite_link:
+        bot = application.bot
+
+        # =================================================
+        # REVOKE INVITE
+        # =================================================
+
+        if invite_link:
+
+            try:
+
+                await safe_telegram_call(
+                    bot.revoke_chat_invite_link,
+                    chat_id=SECRET_GROUP_ID,
+                    invite_link=invite_link,
+                )
+
+                logger.info(
+                    "INVITE REVOKED | user=%s",
+                    user_id,
+                )
+
+            except Exception as e:
+
+                logger.warning(
+                    "INVITE REVOKE FAILED | user=%s | %s",
+                    user_id,
+                    e,
+                )
+
+        # =================================================
+        # CHECK SECRET GROUP
+        # =================================================
 
         try:
 
-            await bot.revoke_chat_invite_link(
-                chat_id=SECRET_GROUP_ID,
-                invite_link=invite_link,
-            )
-
-            logger.info(
-                "INVITE REVOKED | user=%s",
-                user_id,
-            )
-
-        except Exception as e:
-
-            logger.warning(
-                "INVITE REVOKE FAILED | user=%s | %s",
-                user_id,
-                e,
-            )
-
-    # =====================================================
-    # CHECK SECRET GROUP
-    # =====================================================
-
-    try:
-
-        member = await bot.get_chat_member(
-            chat_id=SECRET_GROUP_ID,
-            user_id=user_id,
-        )
-
-        secret_status = member.status
-
-        logger.info(
-            "SECRET MEMBER STATUS | user=%s | status=%s",
-            user_id,
-            secret_status,
-        )
-
-    except Exception as e:
-
-        logger.error(
-            "SECRET MEMBER CHECK ERROR | user=%s | %s",
-            user_id,
-            e,
-        )
-
-        return
-
-    # =====================================================
-    # REMOVE USER
-    # =====================================================
-
-    if secret_status in ACTIVE_STATUSES:
-
-        try:
-
-            await bot.ban_chat_member(
+            member = await safe_telegram_call(
+                bot.get_chat_member,
                 chat_id=SECRET_GROUP_ID,
                 user_id=user_id,
             )
 
-            logger.warning(
-                "SECRET GROUP BAN SUCCESS | user=%s",
+            secret_status = member.status
+
+            logger.info(
+                "SECRET MEMBER STATUS | user=%s | status=%s",
                 user_id,
+                secret_status,
             )
 
         except Exception as e:
 
             logger.error(
-                "SECRET GROUP BAN ERROR | user=%s | %s",
+                "SECRET MEMBER CHECK ERROR | user=%s | %s",
                 user_id,
                 e,
             )
 
+            # API error ആണെങ്കിൽ DB access clear ചെയ്യരുത്
             return
 
         # =================================================
-        # UNBAN IMMEDIATELY
+        # REMOVE USER
+        # =================================================
+
+        if secret_status in ACTIVE_STATUSES:
+
+            try:
+
+                await safe_telegram_call(
+                    bot.ban_chat_member,
+                    chat_id=SECRET_GROUP_ID,
+                    user_id=user_id,
+                )
+
+                logger.warning(
+                    "SECRET GROUP BAN SUCCESS | user=%s",
+                    user_id,
+                )
+
+            except Exception as e:
+
+                logger.error(
+                    "SECRET GROUP BAN ERROR | user=%s | %s",
+                    user_id,
+                    e,
+                )
+
+                return
+
+            # =============================================
+            # IMMEDIATE UNBAN
+            # =============================================
+
+            try:
+
+                await safe_telegram_call(
+                    bot.unban_chat_member,
+                    chat_id=SECRET_GROUP_ID,
+                    user_id=user_id,
+                    only_if_banned=True,
+                )
+
+                logger.info(
+                    "SECRET GROUP UNBAN SUCCESS | user=%s",
+                    user_id,
+                )
+
+            except Exception as e:
+
+                logger.error(
+                    "SECRET GROUP UNBAN ERROR | user=%s | %s",
+                    user_id,
+                    e,
+                )
+
+        else:
+
+            logger.info(
+                "USER NOT ACTIVE IN SECRET GROUP | user=%s",
+                user_id,
+            )
+
+        # =================================================
+        # CLEAR DATABASE
         # =================================================
 
         try:
 
-            await bot.unban_chat_member(
-                chat_id=SECRET_GROUP_ID,
-                user_id=user_id,
-                only_if_banned=True,
+            await update_secret(
+                user_id,
+                False,
+            )
+
+            await clear_invite(
+                user_id,
             )
 
             logger.info(
-                "SECRET GROUP UNBAN SUCCESS | user=%s",
+                "ACCESS CLEARED | user=%s",
                 user_id,
             )
 
         except Exception as e:
 
             logger.error(
-                "SECRET GROUP UNBAN ERROR | user=%s | %s",
+                "DATABASE CLEAR ERROR | user=%s | %s",
                 user_id,
                 e,
             )
 
-    else:
+        # =================================================
+        # NOTIFY USER
+        # =================================================
 
-        logger.info(
-            "USER NOT ACTIVE IN SECRET GROUP | user=%s",
-            user_id,
-        )
+        try:
 
-    # =====================================================
-    # CLEAR DATABASE
-    # =====================================================
+            await safe_telegram_call(
+                bot.send_message,
+                chat_id=user_id,
+                text=REMOVED_TEXT,
+            )
 
-    try:
+        except Exception as e:
 
-        await update_secret(
-            user_id,
-            False,
-        )
-
-        await clear_invite(
-            user_id,
-        )
-
-        logger.info(
-            "ACCESS CLEARED | user=%s",
-            user_id,
-        )
-
-    except Exception as e:
-
-        logger.error(
-            "DATABASE CLEAR ERROR | user=%s | %s",
-            user_id,
-            e,
-        )
-
-    # =====================================================
-    # NOTIFY
-    # =====================================================
-
-    try:
-
-        await bot.send_message(
-            chat_id=user_id,
-            text=REMOVED_TEXT,
-        )
-
-    except Exception as e:
-
-        logger.warning(
-            "NOTIFICATION ERROR | user=%s | %s",
-            user_id,
-            e,
-        )
+            logger.warning(
+                "NOTIFICATION ERROR | user=%s | %s",
+                user_id,
+                e,
+            )
 
 
 # =========================================================
@@ -306,7 +456,7 @@ async def start(
     user_id = update.effective_user.id
 
     await add_user(
-        user_id,
+        user_id
     )
 
     keyboard = InlineKeyboardMarkup(
@@ -347,7 +497,7 @@ async def check_access(
     user_id = query.from_user.id
 
     await add_user(
-        user_id,
+        user_id
     )
 
     # =====================================================
@@ -429,7 +579,7 @@ async def check_access(
     # =====================================================
 
     data = await get_user(
-        user_id,
+        user_id
     )
 
     # =====================================================
@@ -455,7 +605,7 @@ async def check_access(
         if still_member:
 
             await query.message.reply_text(
-                ALREADY_SECRET_TEXT,
+                ALREADY_SECRET_TEXT
             )
 
             return
@@ -471,7 +621,8 @@ async def check_access(
 
     try:
 
-        await context.bot.unban_chat_member(
+        await safe_telegram_call(
+            context.bot.unban_chat_member,
             chat_id=SECRET_GROUP_ID,
             user_id=user_id,
             only_if_banned=True,
@@ -491,9 +642,10 @@ async def check_access(
 
     try:
 
-        invite = await context.bot.create_chat_invite_link(
+        invite = await safe_telegram_call(
+            context.bot.create_chat_invite_link,
             chat_id=SECRET_GROUP_ID,
-            member_limit=1,
+            member_limit=INVITE_MEMBER_LIMIT,
         )
 
         await save_invite(
@@ -510,7 +662,7 @@ async def check_access(
         )
 
         await query.message.reply_text(
-            "❌ Invite link create ചെയ്യാൻ കഴിഞ്ഞില്ല.",
+            "❌ Invite link create ചെയ്യാൻ കഴിഞ്ഞില്ല."
         )
 
         return
@@ -617,6 +769,10 @@ async def main_group_check(
 
     user_id = user.id
 
+    # =====================================================
+    # CHECK BOTH GROUPS
+    # =====================================================
+
     main1 = await is_member(
         context.bot,
         MAIN_GROUP_1_ID,
@@ -650,8 +806,12 @@ async def main_group_check(
     if main1 and main2:
         return
 
+    # =====================================================
+    # DATABASE
+    # =====================================================
+
     data = await get_user(
-        user_id,
+        user_id
     )
 
     if not data:
@@ -665,6 +825,66 @@ async def main_group_check(
         user_id,
         data.get("invite_link"),
     )
+
+
+# =========================================================
+# BULK CHECK ONE USER
+# =========================================================
+
+async def check_active_user(
+    application: Application,
+    user: dict,
+):
+
+    if not user.get("secret"):
+        return
+
+    user_id = user.get("_id")
+
+    if not user_id:
+        return
+
+    try:
+
+        main1 = await is_member(
+            application.bot,
+            MAIN_GROUP_1_ID,
+            user_id,
+        )
+
+        if main1 is None:
+            return
+
+        main2 = await is_member(
+            application.bot,
+            MAIN_GROUP_2_ID,
+            user_id,
+        )
+
+        if main2 is None:
+            return
+
+        if main1 and main2:
+            return
+
+        logger.warning(
+            "AUTO REMOVE DETECTED | user=%s",
+            user_id,
+        )
+
+        await remove_from_secret(
+            application,
+            user_id,
+            user.get("invite_link"),
+        )
+
+    except Exception as e:
+
+        logger.exception(
+            "USER CHECK ERROR | user=%s | %s",
+            user_id,
+            e,
+        )
 
 
 # =========================================================
@@ -685,70 +905,73 @@ async def auto_remove_checker(
 
             users = await all_users()
 
-            checked = 0
+            active_users = [
+                user
+                for user in users
+                if user.get("secret")
+                and user.get("_id")
+            ]
 
-            for user in users:
+            total = len(
+                active_users
+            )
 
-                if not user.get("secret"):
-                    continue
+            logger.info(
+                "AUTO CHECK START | active_users=%s",
+                total,
+            )
 
-                user_id = user.get("_id")
+            # =================================================
+            # PROCESS IN CONTROLLED BATCHES
+            # =================================================
 
-                if not user_id:
-                    continue
+            for index in range(
+                0,
+                total,
+                API_CONCURRENCY,
+            ):
 
-                checked += 1
+                batch = active_users[
+                    index:index + API_CONCURRENCY
+                ]
 
-                main1 = await is_member(
-                    application.bot,
-                    MAIN_GROUP_1_ID,
-                    user_id,
-                )
+                tasks = []
 
-                if main1 is None:
+                for user in batch:
 
-                    logger.warning(
-                        "AUTO CHECK SKIPPED | MAIN1 API ERROR | user=%s",
-                        user_id,
+                    tasks.append(
+                        asyncio.create_task(
+                            check_active_user(
+                                application,
+                                user,
+                            )
+                        )
                     )
 
-                    continue
+                if tasks:
 
-                main2 = await is_member(
-                    application.bot,
-                    MAIN_GROUP_2_ID,
-                    user_id,
-                )
-
-                if main2 is None:
-
-                    logger.warning(
-                        "AUTO CHECK SKIPPED | MAIN2 API ERROR | user=%s",
-                        user_id,
+                    await asyncio.gather(
+                        *tasks,
+                        return_exceptions=True,
                     )
 
-                    continue
-
-                logger.info(
-                    "AUTO CHECK | user=%s | main1=%s | main2=%s",
-                    user_id,
-                    main1,
-                    main2,
+                # Small pause between batches
+                await asyncio.sleep(
+                    CHECK_DELAY
                 )
 
-                if main1 and main2:
-                    continue
+            logger.info(
+                "AUTO CHECK COMPLETE | active_users=%s",
+                total,
+            )
 
-                logger.warning(
-                    "AUTO REMOVE DETECTED | user=%s",
-                    user_id,
-                )
+        except asyncio.CancelledError:
 
-                await remove_from_secret(
-                    application,
-                    user_id,
-                    user.get("invite_link"),
-                )
+            logger.info(
+                "AUTO CHECKER CANCELLED"
+            )
+
+            raise
 
         except Exception as e:
 
@@ -757,7 +980,9 @@ async def auto_remove_checker(
                 e,
             )
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(
+            AUTO_CHECK_INTERVAL
+        )
 
 
 # =========================================================
@@ -774,13 +999,14 @@ def parse_broadcast(text: str):
     lines = text.splitlines()
 
     message_lines = []
+
     keyboard_rows = []
 
     for line in lines:
 
-        # -------------------------------------------------
-        # MULTIPLE BUTTONS IN ONE ROW
-        # -------------------------------------------------
+        # =================================================
+        # MULTIPLE BUTTONS
+        # =================================================
 
         if "|" in line and "[" in line:
 
@@ -801,8 +1027,13 @@ def parse_broadcast(text: str):
                     valid_row = False
                     break
 
-                button_text = match.group(1).strip()
-                button_url = match.group(2).strip()
+                button_text = match.group(
+                    1
+                ).strip()
+
+                button_url = match.group(
+                    2
+                ).strip()
 
                 row.append(
                     InlineKeyboardButton(
@@ -819,9 +1050,9 @@ def parse_broadcast(text: str):
 
                 continue
 
-        # -------------------------------------------------
+        # =================================================
         # SINGLE BUTTON
-        # -------------------------------------------------
+        # =================================================
 
         match = BUTTON_PATTERN.match(
             line
@@ -829,8 +1060,13 @@ def parse_broadcast(text: str):
 
         if match:
 
-            button_text = match.group(1).strip()
-            button_url = match.group(2).strip()
+            button_text = match.group(
+                1
+            ).strip()
+
+            button_url = match.group(
+                2
+            ).strip()
 
             keyboard_rows.append(
                 [
@@ -842,10 +1078,6 @@ def parse_broadcast(text: str):
             )
 
             continue
-
-        # -------------------------------------------------
-        # NORMAL MESSAGE LINE
-        # -------------------------------------------------
 
         message_lines.append(
             line
@@ -889,12 +1121,10 @@ async def broadcast(
         return
 
     if not update.message:
-
         return
 
     raw_text = update.message.text or ""
 
-    # Remove /broadcast
     content = raw_text[
         len("/broadcast"):
     ].strip()
@@ -911,10 +1141,6 @@ async def broadcast(
 
         return
 
-    # =====================================================
-    # PARSE
-    # =====================================================
-
     message, keyboard = parse_broadcast(
         content
     )
@@ -927,10 +1153,6 @@ async def broadcast(
 
         return
 
-    # =====================================================
-    # GET USERS
-    # =====================================================
-
     users = await all_users()
 
     sent = 0
@@ -940,20 +1162,19 @@ async def broadcast(
         "📢 Broadcast started..."
     )
 
-    # =====================================================
-    # SEND
-    # =====================================================
-
     for user in users:
 
-        target_id = user.get("_id")
+        target_id = user.get(
+            "_id"
+        )
 
         if not target_id:
             continue
 
         try:
 
-            await context.bot.send_message(
+            await safe_telegram_call(
+                context.bot.send_message,
                 chat_id=target_id,
                 text=message,
                 reply_markup=keyboard,
@@ -971,12 +1192,9 @@ async def broadcast(
                 e,
             )
 
-        # Avoid Telegram flood
-        await asyncio.sleep(0.05)
-
-    # =====================================================
-    # RESULT
-    # =====================================================
+        await asyncio.sleep(
+            BROADCAST_DELAY
+        )
 
     await update.message.reply_text(
         "✅ Broadcast completed.\n\n"
@@ -1009,14 +1227,15 @@ async def users_command(
 
     users = await all_users()
 
-    total = len(users)
+    total = len(
+        users
+    )
 
-    active_secret = 0
-
-    for user in users:
-
-        if user.get("secret"):
-            active_secret += 1
+    active_secret = sum(
+        1
+        for user in users
+        if user.get("secret")
+    )
 
     await update.message.reply_text(
         "👥 USER STATISTICS\n\n"
@@ -1070,17 +1289,9 @@ async def check_user_command(
 
         return
 
-    # =====================================================
-    # DATABASE
-    # =====================================================
-
     data = await get_user(
         target_user_id
     )
-
-    # =====================================================
-    # MAIN 1
-    # =====================================================
 
     main1 = await is_member(
         context.bot,
@@ -1088,29 +1299,17 @@ async def check_user_command(
         target_user_id,
     )
 
-    # =====================================================
-    # MAIN 2
-    # =====================================================
-
     main2 = await is_member(
         context.bot,
         MAIN_GROUP_2_ID,
         target_user_id,
     )
 
-    # =====================================================
-    # SECRET
-    # =====================================================
-
     secret = await is_member(
         context.bot,
         SECRET_GROUP_ID,
         target_user_id,
     )
-
-    # =====================================================
-    # FORMAT
-    # =====================================================
 
     def status_text(value):
 
@@ -1147,15 +1346,17 @@ async def post_init(
     application: Application,
 ):
 
-    application.create_task(
-        auto_remove_checker(
-            application
-        )
-    )
+    if AUTO_CHECK_ENABLED:
 
-    logger.info(
-        "BACKGROUND CHECKER TASK CREATED"
-    )
+        application.create_task(
+            auto_remove_checker(
+                application
+            )
+        )
+
+        logger.info(
+            "BACKGROUND CHECKER TASK CREATED"
+        )
 
 
 # =========================================================
@@ -1193,12 +1394,15 @@ app.add_handler(
 # ADMIN HANDLERS
 # =========================================================
 
-app.add_handler(
-    CommandHandler(
-        "broadcast",
-        broadcast,
+if BROADCAST_ENABLED:
+
+    app.add_handler(
+        CommandHandler(
+            "broadcast",
+            broadcast,
+        )
     )
-)
+
 
 app.add_handler(
     CommandHandler(
