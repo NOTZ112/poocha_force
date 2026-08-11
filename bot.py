@@ -43,28 +43,6 @@ logger = logging.getLogger(__name__)
 
 
 # =========================================================
-# SETTINGS
-# =========================================================
-
-# Bulk users handle ചെയ്യാൻ
-# config.py-ൽ ഉണ്ടെങ്കിൽ അത് ഉപയോഗിക്കും.
-API_CONCURRENCY = globals().get(
-    "API_CONCURRENCY",
-    10,
-)
-
-CHECK_DELAY = globals().get(
-    "CHECK_DELAY",
-    0.08,
-)
-
-AUTO_CHECK_INTERVAL = globals().get(
-    "AUTO_CHECK_INTERVAL",
-    30,
-)
-
-
-# =========================================================
 # ACTIVE STATUSES
 # =========================================================
 
@@ -80,7 +58,6 @@ ACTIVE_STATUSES = (
 # =========================================================
 
 def is_admin(user_id: int) -> bool:
-
     return user_id in ADMIN_IDS
 
 
@@ -88,11 +65,7 @@ def is_admin(user_id: int) -> bool:
 # MEMBER CHECK
 # =========================================================
 
-async def is_member(
-    bot,
-    chat_id,
-    user_id,
-):
+async def is_member(bot, chat_id, user_id):
 
     try:
 
@@ -130,8 +103,8 @@ async def is_member(
             e,
         )
 
-        # API error വന്നാൽ False ആക്കരുത്.
-        # False ആക്കിയാൽ active user തെറ്റായി remove ആകാം.
+        # API error = unknown
+        # NEVER treat it as user left
         return None
 
 
@@ -179,7 +152,7 @@ async def remove_from_secret(
             )
 
     # =====================================================
-    # CHECK SECRET GROUP
+    # CHECK SECRET MEMBERSHIP
     # =====================================================
 
     try:
@@ -205,7 +178,7 @@ async def remove_from_secret(
             e,
         )
 
-        # API error ആണെങ്കിൽ DB access clear ചെയ്യരുത്.
+        # Even if check fails, clear DB only if necessary
         return
 
     # =====================================================
@@ -237,7 +210,7 @@ async def remove_from_secret(
             return
 
         # =================================================
-        # IMMEDIATELY UNBAN
+        # UNBAN IMMEDIATELY
         # =================================================
 
         try:
@@ -297,7 +270,7 @@ async def remove_from_secret(
         )
 
     # =====================================================
-    # NOTIFY USER
+    # NOTIFY
     # =====================================================
 
     try:
@@ -514,7 +487,7 @@ async def check_access(
         )
 
     # =====================================================
-    # CREATE SINGLE USE INVITE
+    # CREATE INVITE
     # =====================================================
 
     try:
@@ -527,11 +500,6 @@ async def check_access(
         await save_invite(
             user_id,
             invite.invite_link,
-        )
-
-        logger.info(
-            "INVITE CREATED | user=%s",
-            user_id,
         )
 
     except Exception as e:
@@ -597,10 +565,6 @@ async def secret_group_check(
         status,
     )
 
-    # =====================================================
-    # JOINED
-    # =====================================================
-
     if status in ACTIVE_STATUSES:
 
         await update_secret(
@@ -646,10 +610,6 @@ async def main_group_check(
         user.id,
         status,
     )
-
-    # =====================================================
-    # ONLY LEFT / BANNED
-    # =====================================================
 
     if status not in (
         ChatMemberStatus.LEFT,
@@ -697,10 +657,7 @@ async def main_group_check(
 
         return
 
-    # =====================================================
-    # STILL BOTH
-    # =====================================================
-
+    # Both still joined
     if main1 and main2:
         return
 
@@ -719,7 +676,7 @@ async def main_group_check(
         return
 
     # =====================================================
-    # REMOVE
+    # REMOVE SECRET ACCESS
     # =====================================================
 
     await remove_from_secret(
@@ -727,98 +684,6 @@ async def main_group_check(
         user_id,
         data.get("invite_link"),
     )
-
-
-# =========================================================
-# CHECK ONE ACTIVE USER
-# =========================================================
-
-async def check_active_user(
-    application: Application,
-    user: dict,
-):
-
-    user_id = user.get("_id")
-
-    if not user_id:
-        return
-
-    try:
-
-        # =================================================
-        # MAIN GROUP 1
-        # =================================================
-
-        main1 = await is_member(
-            application.bot,
-            MAIN_GROUP_1_ID,
-            user_id,
-        )
-
-        if main1 is None:
-
-            logger.warning(
-                "AUTO CHECK SKIPPED | MAIN1 API ERROR | user=%s",
-                user_id,
-            )
-
-            return
-
-        # =================================================
-        # MAIN GROUP 2
-        # =================================================
-
-        main2 = await is_member(
-            application.bot,
-            MAIN_GROUP_2_ID,
-            user_id,
-        )
-
-        if main2 is None:
-
-            logger.warning(
-                "AUTO CHECK SKIPPED | MAIN2 API ERROR | user=%s",
-                user_id,
-            )
-
-            return
-
-        logger.info(
-            "AUTO CHECK | user=%s | main1=%s | main2=%s",
-            user_id,
-            main1,
-            main2,
-        )
-
-        # =================================================
-        # BOTH GROUPS OK
-        # =================================================
-
-        if main1 and main2:
-            return
-
-        # =================================================
-        # ACCESS LOST
-        # =================================================
-
-        logger.warning(
-            "AUTO REMOVE DETECTED | user=%s",
-            user_id,
-        )
-
-        await remove_from_secret(
-            application,
-            user_id,
-            user.get("invite_link"),
-        )
-
-    except Exception as e:
-
-        logger.exception(
-            "ACTIVE USER CHECK ERROR | user=%s | %s",
-            user_id,
-            e,
-        )
 
 
 # =========================================================
@@ -837,72 +702,100 @@ async def auto_remove_checker(
 
         try:
 
+            if not AUTO_CHECK_ENABLED:
+
+                await asyncio.sleep(
+                    AUTO_CHECK_INTERVAL
+                )
+
+                continue
+
             users = await all_users()
 
             active_users = [
                 user
                 for user in users
                 if user.get("secret")
-                and user.get("_id")
             ]
-
-            total = len(
-                active_users
-            )
 
             logger.info(
                 "AUTO CHECK START | active_users=%s",
-                total,
+                len(active_users),
             )
 
-            # =================================================
-            # PROCESS IN BATCHES
-            # =================================================
+            for user in active_users:
 
-            for index in range(
-                0,
-                total,
-                API_CONCURRENCY,
-            ):
+                user_id = user.get("_id")
 
-                batch = active_users[
-                    index:index + API_CONCURRENCY
-                ]
+                if not user_id:
+                    continue
 
-                tasks = [
-                    asyncio.create_task(
-                        check_active_user(
-                            application,
-                            user,
-                        )
-                    )
-                    for user in batch
-                ]
+                # =================================================
+                # MAIN GROUP 1
+                # =================================================
 
-                if tasks:
-
-                    await asyncio.gather(
-                        *tasks,
-                        return_exceptions=True,
-                    )
-
-                # Small delay between batches
-                await asyncio.sleep(
-                    CHECK_DELAY
+                main1 = await is_member(
+                    application.bot,
+                    MAIN_GROUP_1_ID,
+                    user_id,
                 )
+
+                if main1 is None:
+
+                    logger.warning(
+                        "AUTO CHECK SKIPPED | MAIN1 API ERROR | user=%s",
+                        user_id,
+                    )
+
+                    continue
+
+                # =================================================
+                # MAIN GROUP 2
+                # =================================================
+
+                main2 = await is_member(
+                    application.bot,
+                    MAIN_GROUP_2_ID,
+                    user_id,
+                )
+
+                if main2 is None:
+
+                    logger.warning(
+                        "AUTO CHECK SKIPPED | MAIN2 API ERROR | user=%s",
+                        user_id,
+                    )
+
+                    continue
+
+                logger.info(
+                    "AUTO CHECK | user=%s | main1=%s | main2=%s",
+                    user_id,
+                    main1,
+                    main2,
+                )
+
+                if main1 and main2:
+                    continue
+
+                logger.warning(
+                    "AUTO REMOVE DETECTED | user=%s",
+                    user_id,
+                )
+
+                await remove_from_secret(
+                    application,
+                    user_id,
+                    user.get("invite_link"),
+                )
+
+                # Small pause
+                await asyncio.sleep(0.1)
 
             logger.info(
                 "AUTO CHECK COMPLETE | active_users=%s",
-                total,
+                len(active_users),
             )
-
-        except asyncio.CancelledError:
-
-            logger.info(
-                "AUTO CHECKER CANCELLED"
-            )
-
-            raise
 
         except Exception as e:
 
@@ -910,10 +803,6 @@ async def auto_remove_checker(
                 "AUTO CHECKER ERROR | %s",
                 e,
             )
-
-        # =================================================
-        # NEXT CHECK
-        # =================================================
 
         await asyncio.sleep(
             AUTO_CHECK_INTERVAL
@@ -934,13 +823,12 @@ def parse_broadcast(text: str):
     lines = text.splitlines()
 
     message_lines = []
-
     keyboard_rows = []
 
     for line in lines:
 
         # =================================================
-        # MULTIPLE BUTTONS IN ONE ROW
+        # MULTIPLE BUTTONS IN SAME ROW
         # =================================================
 
         if "|" in line and "[" in line:
@@ -948,7 +836,6 @@ def parse_broadcast(text: str):
             parts = line.split("|")
 
             row = []
-
             valid_row = True
 
             for part in parts:
@@ -962,13 +849,8 @@ def parse_broadcast(text: str):
                     valid_row = False
                     break
 
-                button_text = (
-                    match.group(1).strip()
-                )
-
-                button_url = (
-                    match.group(2).strip()
-                )
+                button_text = match.group(1).strip()
+                button_url = match.group(2).strip()
 
                 row.append(
                     InlineKeyboardButton(
@@ -995,13 +877,8 @@ def parse_broadcast(text: str):
 
         if match:
 
-            button_text = (
-                match.group(1).strip()
-            )
-
-            button_url = (
-                match.group(2).strip()
-            )
+            button_text = match.group(1).strip()
+            button_url = match.group(2).strip()
 
             keyboard_rows.append(
                 [
@@ -1049,7 +926,22 @@ async def broadcast(
     if not update.effective_user:
         return
 
+    if not update.message:
+        return
+
     user_id = update.effective_user.id
+
+    # =====================================================
+    # ADMIN CHECK
+    # =====================================================
+
+    if not BROADCAST_ENABLED:
+
+        await update.message.reply_text(
+            "❌ Broadcast disabled ആണ്."
+        )
+
+        return
 
     if not is_admin(user_id):
 
@@ -1059,20 +951,71 @@ async def broadcast(
 
         return
 
-    if not update.message:
-        return
+    message = update.message
 
-    raw_text = update.message.text or ""
+    # =====================================================
+    # GET TEXT / CAPTION
+    # =====================================================
 
-    content = raw_text[
-        len("/broadcast"):
-    ].strip()
+    raw_text = (
+        message.text
+        or message.caption
+        or ""
+    )
 
-    if not content:
+    # =====================================================
+    # REMOVE /broadcast
+    # =====================================================
+
+    if raw_text.lower().startswith("/broadcast"):
+
+        content = raw_text[
+            len("/broadcast"):
+        ].strip()
+
+    else:
+
+        content = raw_text.strip()
+
+    # =====================================================
+    # PARSE TEXT + BUTTONS
+    # =====================================================
+
+    broadcast_text, keyboard = parse_broadcast(
+        content
+    )
+
+    # =====================================================
+    # MEDIA CHECK
+    # =====================================================
+
+    has_photo = bool(message.photo)
+
+    has_video = bool(message.video)
+
+    has_document = bool(message.document)
+
+    has_animation = bool(message.animation)
+
+    has_audio = bool(message.audio)
+
+    has_media = (
+        has_photo
+        or has_video
+        or has_document
+        or has_animation
+        or has_audio
+    )
+
+    # =====================================================
+    # EMPTY CHECK
+    # =====================================================
+
+    if not broadcast_text and not has_media:
 
         await update.message.reply_text(
-            "❌ Broadcast message ഇല്ല.\n\n"
-            "Format:\n\n"
+            "❌ Broadcast message empty ആണ്.\n\n"
+            "Example:\n\n"
             "/broadcast\n"
             "🔥 Hello Everyone!\n\n"
             "[📢 JOIN NOW] - https://t.me/example"
@@ -1081,23 +1024,7 @@ async def broadcast(
         return
 
     # =====================================================
-    # PARSE
-    # =====================================================
-
-    message, keyboard = parse_broadcast(
-        content
-    )
-
-    if not message:
-
-        await update.message.reply_text(
-            "❌ Broadcast message empty ആണ്."
-        )
-
-        return
-
-    # =====================================================
-    # USERS
+    # GET USERS
     # =====================================================
 
     users = await all_users()
@@ -1110,7 +1037,7 @@ async def broadcast(
     )
 
     # =====================================================
-    # SEND
+    # BROADCAST LOOP
     # =====================================================
 
     for user in users:
@@ -1122,11 +1049,82 @@ async def broadcast(
 
         try:
 
-            await context.bot.send_message(
-                chat_id=target_id,
-                text=message,
-                reply_markup=keyboard,
-            )
+            # =================================================
+            # PHOTO
+            # =================================================
+
+            if message.photo:
+
+                await context.bot.send_photo(
+                    chat_id=target_id,
+                    photo=message.photo[-1].file_id,
+                    caption=broadcast_text or None,
+                    reply_markup=keyboard,
+                )
+
+            # =================================================
+            # VIDEO
+            # =================================================
+
+            elif message.video:
+
+                await context.bot.send_video(
+                    chat_id=target_id,
+                    video=message.video.file_id,
+                    caption=broadcast_text or None,
+                    reply_markup=keyboard,
+                )
+
+            # =================================================
+            # DOCUMENT
+            # =================================================
+
+            elif message.document:
+
+                await context.bot.send_document(
+                    chat_id=target_id,
+                    document=message.document.file_id,
+                    caption=broadcast_text or None,
+                    reply_markup=keyboard,
+                )
+
+            # =================================================
+            # ANIMATION / GIF
+            # =================================================
+
+            elif message.animation:
+
+                await context.bot.send_animation(
+                    chat_id=target_id,
+                    animation=message.animation.file_id,
+                    caption=broadcast_text or None,
+                    reply_markup=keyboard,
+                )
+
+            # =================================================
+            # AUDIO
+            # =================================================
+
+            elif message.audio:
+
+                await context.bot.send_audio(
+                    chat_id=target_id,
+                    audio=message.audio.file_id,
+                    caption=broadcast_text or None,
+                    reply_markup=keyboard,
+                )
+
+            # =================================================
+            # TEXT
+            # =================================================
+
+            else:
+
+                await context.bot.send_message(
+                    chat_id=target_id,
+                    text=broadcast_text,
+                    reply_markup=keyboard,
+                )
 
             sent += 1
 
@@ -1140,7 +1138,10 @@ async def broadcast(
                 e,
             )
 
-        # Telegram flood control
+        # =================================================
+        # FLOOD CONTROL
+        # =================================================
+
         await asyncio.sleep(
             0.05
         )
@@ -1168,6 +1169,9 @@ async def users_command(
     if not update.effective_user:
         return
 
+    if not update.message:
+        return
+
     if not is_admin(
         update.effective_user.id
     ):
@@ -1180,15 +1184,14 @@ async def users_command(
 
     users = await all_users()
 
-    total = len(
-        users
-    )
+    total = len(users)
 
-    active_secret = sum(
-        1
-        for user in users
-        if user.get("secret")
-    )
+    active_secret = 0
+
+    for user in users:
+
+        if user.get("secret"):
+            active_secret += 1
 
     await update.message.reply_text(
         "👥 USER STATISTICS\n\n"
@@ -1207,6 +1210,9 @@ async def check_user_command(
 ):
 
     if not update.effective_user:
+        return
+
+    if not update.message:
         return
 
     if not is_admin(
@@ -1251,7 +1257,7 @@ async def check_user_command(
     )
 
     # =====================================================
-    # MAIN 1
+    # MAIN GROUP 1
     # =====================================================
 
     main1 = await is_member(
@@ -1261,7 +1267,7 @@ async def check_user_command(
     )
 
     # =====================================================
-    # MAIN 2
+    # MAIN GROUP 2
     # =====================================================
 
     main2 = await is_member(
@@ -1271,7 +1277,7 @@ async def check_user_command(
     )
 
     # =====================================================
-    # SECRET
+    # SECRET GROUP
     # =====================================================
 
     secret = await is_member(
@@ -1323,16 +1329,20 @@ async def post_init(
         "BOT INITIALIZING..."
     )
 
-    # Application startup കഴിഞ്ഞ്
-    # background checker start ചെയ്യുന്നു.
-    asyncio.create_task(
-        auto_remove_checker(
-            application
+    if AUTO_CHECK_ENABLED:
+
+        logger.info(
+            "BACKGROUND CHECKER STARTED"
         )
-    )
+
+        application.create_task(
+            auto_remove_checker(
+                application
+            )
+        )
 
     logger.info(
-        "BACKGROUND CHECKER STARTED"
+        "BACKGROUND CHECKER TASK CREATED"
     )
 
 
@@ -1349,7 +1359,7 @@ app = (
 
 
 # =========================================================
-# START HANDLER
+# USER HANDLERS
 # =========================================================
 
 app.add_handler(
@@ -1358,11 +1368,6 @@ app.add_handler(
         start,
     )
 )
-
-
-# =========================================================
-# CHECK ACCESS HANDLER
-# =========================================================
 
 app.add_handler(
     CallbackQueryHandler(
@@ -1373,22 +1378,15 @@ app.add_handler(
 
 
 # =========================================================
-# BROADCAST
+# ADMIN HANDLERS
 # =========================================================
 
-if BROADCAST_ENABLED:
-
-    app.add_handler(
-        CommandHandler(
-            "broadcast",
-            broadcast,
-        )
+app.add_handler(
+    CommandHandler(
+        "broadcast",
+        broadcast,
     )
-
-
-# =========================================================
-# USERS
-# =========================================================
+)
 
 app.add_handler(
     CommandHandler(
@@ -1396,11 +1394,6 @@ app.add_handler(
         users_command,
     )
 )
-
-
-# =========================================================
-# CHECK USER
-# =========================================================
 
 app.add_handler(
     CommandHandler(
@@ -1411,7 +1404,7 @@ app.add_handler(
 
 
 # =========================================================
-# SECRET GROUP CHAT MEMBER
+# SECRET GROUP HANDLER
 # =========================================================
 
 app.add_handler(
@@ -1423,7 +1416,7 @@ app.add_handler(
 
 
 # =========================================================
-# MAIN GROUP CHAT MEMBER
+# MAIN GROUP HANDLER
 # =========================================================
 
 app.add_handler(
