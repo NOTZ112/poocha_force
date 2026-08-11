@@ -64,6 +64,16 @@ async def is_member(
 
 
 # =========================
+# ADMIN CHECK
+# =========================
+
+def is_admin(user_id):
+
+    return user_id in ADMIN_IDS
+
+
+
+# =========================
 # START
 # =========================
 
@@ -71,6 +81,14 @@ async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
+
+    # ADDITION:
+    # /start അടിച്ച ഉടൻ user database-ൽ save ചെയ്യും
+
+    await add_user(
+        update.effective_user.id
+    )
+
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -250,6 +268,8 @@ async def check_access(
         SUCCESS_TEXT,
         reply_markup=keyboard
     )
+
+
 # =========================
 # SECRET CHANNEL JOIN CHECK
 # =========================
@@ -433,6 +453,192 @@ async def auto_remove_checker(
 
 
 # =========================
+# ADMIN - USERS COUNT
+# =========================
+
+async def users_count(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if not is_admin(
+        update.effective_user.id
+    ):
+        return
+
+
+    users = await all_users()
+
+
+    await update.message.reply_text(
+        f"👥 TOTAL USERS\n\n"
+        f"━━━━━━━━━━━━━━\n"
+        f"👤 Users: {len(users)}\n"
+        f"━━━━━━━━━━━━━━"
+    )
+
+
+
+# =========================
+# ADMIN - BROADCAST
+# =========================
+
+async def broadcast(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if not is_admin(
+        update.effective_user.id
+    ):
+        return
+
+
+    # Broadcast ചെയ്യേണ്ട message-ന് reply ചെയ്യണം
+
+    if not update.message.reply_to_message:
+
+        await update.message.reply_text(
+            "📢 Broadcast ചെയ്യേണ്ട message-ന് "
+            "Reply ചെയ്ത് /broadcast അയക്കുക.\n\n"
+            "🔘 Button വേണമെങ്കിൽ:\n"
+            "/broadcast Button Name | https://example.com"
+        )
+
+        return
+
+
+    source = update.message.reply_to_message
+
+
+    # =========================
+    # ONE URL BUTTON
+    # =========================
+
+    keyboard = None
+
+
+    if context.args:
+
+        raw = " ".join(
+            context.args
+        )
+
+
+        if "|" in raw:
+
+            button_text, button_url = raw.split(
+                "|",
+                1
+            )
+
+
+            button_text = button_text.strip()
+
+            button_url = button_url.strip()
+
+
+            if button_text and button_url:
+
+                keyboard = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                button_text,
+                                url=button_url
+                            )
+                        ]
+                    ]
+                )
+
+
+    # =========================
+    # GET USERS
+    # =========================
+
+    users = await all_users()
+
+    total = len(users)
+
+    success = 0
+
+    failed = 0
+
+
+    status_message = await update.message.reply_text(
+        f"📢 BROADCAST STARTED\n\n"
+        f"👥 Total Users: {total}\n"
+        f"⏳ Sending..."
+    )
+
+
+    # =========================
+    # SEND
+    # =========================
+
+    for user in users:
+
+        user_id = user.get("_id")
+
+
+        if not user_id:
+            continue
+
+
+        try:
+
+            await context.bot.copy_message(
+                chat_id=user_id,
+                from_chat_id=source.chat.id,
+                message_id=source.message_id,
+                reply_markup=keyboard
+            )
+
+
+            success += 1
+
+
+            await asyncio.sleep(0.05)
+
+
+        except Exception as e:
+
+            failed += 1
+
+
+            print(
+                "Broadcast Error:",
+                user_id,
+                e
+            )
+
+
+    # =========================
+    # RESULT
+    # =========================
+
+    try:
+
+        await status_message.edit_text(
+            f"✅ BROADCAST COMPLETED\n\n"
+            f"━━━━━━━━━━━━━━\n"
+            f"👥 Total Users: {total}\n"
+            f"✅ Sent: {success}\n"
+            f"❌ Failed: {failed}\n"
+            f"━━━━━━━━━━━━━━"
+        )
+
+    except:
+
+        await update.message.reply_text(
+            f"✅ BROADCAST COMPLETED\n\n"
+            f"👥 Total Users: {total}\n"
+            f"✅ Sent: {success}\n"
+            f"❌ Failed: {failed}"
+        )
+
+
+# =========================
 # BACKGROUND TASK
 # =========================
 
@@ -489,6 +695,26 @@ app.add_handler(
 )
 
 
+# =========================
+# ADMIN HANDLERS
+# =========================
+
+app.add_handler(
+    CommandHandler(
+        "users",
+        users_count
+    )
+)
+
+
+app.add_handler(
+    CommandHandler(
+        "broadcast",
+        broadcast
+    )
+)
+
+
 
 print(
     "Bot Started"
@@ -503,4 +729,4 @@ app.run_polling(
         "chat_member",
     ],
     drop_pending_updates=True
-)    
+)
