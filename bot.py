@@ -374,7 +374,18 @@ async def main_group_check(
 
     # Still member in both groups
     if main1 and main2:
+
+        print(
+            "User still in both main groups:",
+            user.id
+        )
+
         return
+
+    print(
+        "ACCESS LOST:",
+        user.id
+    )
 
     # =========================
     # GET USER DATA
@@ -385,9 +396,12 @@ async def main_group_check(
     )
 
     if not data:
-        return
 
-    if not data.get("secret"):
+        print(
+            "User not found in database:",
+            user.id
+        )
+
         return
 
     # =========================
@@ -421,41 +435,88 @@ async def main_group_check(
             )
 
     # =========================
-    # REMOVE FROM SECRET
+    # CHECK SECRET CHANNEL
     # =========================
 
     try:
 
-        await context.bot.ban_chat_member(
-            chat_id=SECRET_CHANNEL_ID,
-            user_id=user.id
-        )
-
-        print(
-            "Secret Channel Ban:",
+        secret_member = await context.bot.get_chat_member(
+            SECRET_CHANNEL_ID,
             user.id
         )
 
-        # Immediately unban.
-        # This removes the user from the channel
-        # while allowing them to join again later
-        # if they regain access.
-
-        await context.bot.unban_chat_member(
-            chat_id=SECRET_CHANNEL_ID,
-            user_id=user.id,
-            only_if_banned=True
-        )
-
         print(
-            "Secret Channel Removed:",
-            user.id
+            "SECRET MEMBER STATUS:",
+            user.id,
+            secret_member.status
         )
+
+        # =========================
+        # REMOVE FROM SECRET
+        # =========================
+
+        if secret_member.status in (
+            ChatMemberStatus.MEMBER,
+            ChatMemberStatus.ADMINISTRATOR,
+            ChatMemberStatus.OWNER,
+        ):
+
+            try:
+
+                await context.bot.ban_chat_member(
+                    chat_id=SECRET_CHANNEL_ID,
+                    user_id=user.id
+                )
+
+                print(
+                    "SECRET CHANNEL BAN SUCCESS:",
+                    user.id
+                )
+
+            except Exception as e:
+
+                print(
+                    "SECRET CHANNEL BAN ERROR:",
+                    user.id,
+                    e
+                )
+
+            # =========================
+            # IMMEDIATELY UNBAN
+            # =========================
+
+            try:
+
+                await context.bot.unban_chat_member(
+                    chat_id=SECRET_CHANNEL_ID,
+                    user_id=user.id,
+                    only_if_banned=True
+                )
+
+                print(
+                    "SECRET CHANNEL UNBAN SUCCESS:",
+                    user.id
+                )
+
+            except Exception as e:
+
+                print(
+                    "SECRET CHANNEL UNBAN ERROR:",
+                    user.id,
+                    e
+                )
+
+        else:
+
+            print(
+                "User already not in Secret Channel:",
+                user.id
+            )
 
     except Exception as e:
 
         print(
-            "Secret Remove Error:",
+            "SECRET CHANNEL MEMBER CHECK ERROR:",
             user.id,
             e
         )
@@ -470,6 +531,11 @@ async def main_group_check(
     )
 
     await clear_invite(
+        user.id
+    )
+
+    print(
+        "ACCESS CLEARED:",
         user.id
     )
 
@@ -574,36 +640,88 @@ async def auto_remove_checker(
                         )
 
                 # =========================
-                # REMOVE FROM SECRET
+                # CHECK SECRET CHANNEL
                 # =========================
 
                 try:
 
-                    await application.bot.ban_chat_member(
-                        chat_id=SECRET_CHANNEL_ID,
-                        user_id=uid
-                    )
-
-                    print(
-                        "Banned from Secret:",
+                    secret_member = await application.bot.get_chat_member(
+                        SECRET_CHANNEL_ID,
                         uid
                     )
 
-                    await application.bot.unban_chat_member(
-                        chat_id=SECRET_CHANNEL_ID,
-                        user_id=uid,
-                        only_if_banned=True
+                    print(
+                        "AUTO SECRET STATUS:",
+                        uid,
+                        secret_member.status
                     )
 
-                    print(
-                        "Removed from Secret:",
-                        uid
-                    )
+                    # =========================
+                    # REMOVE FROM SECRET
+                    # =========================
+
+                    if secret_member.status in (
+                        ChatMemberStatus.MEMBER,
+                        ChatMemberStatus.ADMINISTRATOR,
+                        ChatMemberStatus.OWNER,
+                    ):
+
+                        try:
+
+                            await application.bot.ban_chat_member(
+                                chat_id=SECRET_CHANNEL_ID,
+                                user_id=uid
+                            )
+
+                            print(
+                                "AUTO BAN SUCCESS:",
+                                uid
+                            )
+
+                        except Exception as e:
+
+                            print(
+                                "AUTO BAN ERROR:",
+                                uid,
+                                e
+                            )
+
+                        # =========================
+                        # IMMEDIATELY UNBAN
+                        # =========================
+
+                        try:
+
+                            await application.bot.unban_chat_member(
+                                chat_id=SECRET_CHANNEL_ID,
+                                user_id=uid,
+                                only_if_banned=True
+                            )
+
+                            print(
+                                "AUTO UNBAN SUCCESS:",
+                                uid
+                            )
+
+                        except Exception as e:
+
+                            print(
+                                "AUTO UNBAN ERROR:",
+                                uid,
+                                e
+                            )
+
+                    else:
+
+                        print(
+                            "User already not in Secret Channel:",
+                            uid
+                        )
 
                 except Exception as e:
 
                     print(
-                        "Remove Error:",
+                        "AUTO SECRET CHECK ERROR:",
                         uid,
                         e
                     )
@@ -618,6 +736,11 @@ async def auto_remove_checker(
                 )
 
                 await clear_invite(
+                    uid
+                )
+
+                print(
+                    "AUTO ACCESS CLEARED:",
                     uid
                 )
 
@@ -741,4 +864,4 @@ app.run_polling(
         "chat_member",
     ],
     drop_pending_updates=True
-                    )
+)
