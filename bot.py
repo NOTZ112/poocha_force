@@ -288,7 +288,128 @@ async def secret_channel_check(
             user.id
         )
 
+=========================
 
+NEW — MAIN CHANNEL LEAVE CHECK
+
+=========================
+
+async def main_channel_check(
+update: Update,
+context: ContextTypes.DEFAULT_TYPE
+):
+
+member = update.chat_member
+
+chat_id = member.chat.id
+
+if chat_id not in (
+    MAIN_GROUP_1_ID,
+    MAIN_GROUP_2_ID
+):
+    return
+
+new_status = member.new_chat_member.status
+
+user = member.new_chat_member.user
+
+if new_status not in (
+    ChatMemberStatus.LEFT,
+    ChatMemberStatus.BANNED,
+):
+    return
+
+print(
+    "MAIN CHANNEL LEFT:",
+    user.id,
+    "FROM:",
+    chat_id
+)
+
+data = await get_user(user.id)
+
+if not data:
+    return
+
+if not data.get("secret"):
+    return
+
+# REVOKE INVITE
+
+if data.get("invite_link"):
+
+    try:
+
+        await context.bot.revoke_chat_invite_link(
+            SECRET_CHANNEL_ID,
+            data["invite_link"]
+        )
+
+        print(
+            "Invite Revoked:",
+            user.id
+        )
+
+    except Exception as e:
+
+        print(
+            "Revoke Error:",
+            user.id,
+            e
+        )
+
+# REMOVE FROM SECRET CHANNEL
+
+try:
+
+    await context.bot.ban_chat_member(
+        SECRET_CHANNEL_ID,
+        user.id
+    )
+
+    print(
+        "Banned from Secret:",
+        user.id
+    )
+
+    await context.bot.unban_chat_member(
+        SECRET_CHANNEL_ID,
+        user.id,
+        only_if_banned=True
+    )
+
+    print(
+        "Removed Secret:",
+        user.id
+    )
+
+except Exception as e:
+
+    print(
+        "Secret Remove Error:",
+        user.id,
+        e
+    )
+
+await update_secret(
+    user.id,
+    False
+)
+
+await clear_invite(
+    user.id
+)
+
+try:
+
+    await context.bot.send_message(
+        user.id,
+        REMOVED_TEXT
+    )
+
+except Exception:
+
+    pass
 
 # =========================
 # =========================
@@ -483,7 +604,18 @@ app.add_handler(
     )
 )
 
+=========================
 
+NEW — MAIN CHANNEL HANDLER
+
+=========================
+
+app.add_handler(
+ChatMemberHandler(
+main_channel_check,
+ChatMemberHandler.CHAT_MEMBER
+)
+)
 
 print(
     "Bot Started"
