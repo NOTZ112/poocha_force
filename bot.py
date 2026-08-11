@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================================================
-# MEMBER STATUS
+# ACTIVE MEMBER STATUSES
 # =========================================================
 
 ACTIVE_STATUSES = (
@@ -56,20 +56,7 @@ ACTIVE_STATUSES = (
 # CHECK MEMBER
 # =========================================================
 
-async def is_member(
-    bot,
-    chat_id,
-    user_id,
-):
-    """
-    Returns:
-        True  -> user is member
-        False -> user is definitely NOT member
-        None  -> Telegram/API/network error
-
-    IMPORTANT:
-    API/network error must NOT be treated as user leaving.
-    """
+async def is_member(bot, chat_id, user_id):
 
     try:
 
@@ -98,16 +85,13 @@ async def is_member(
             e,
         )
 
-        # VERY IMPORTANT
-        # Do NOT return False here.
-        # False would mean user definitely left.
-        #
-        # None means Telegram/API check failed.
+        # IMPORTANT:
+        # Telegram/API error != user left
         return None
 
 
 # =========================================================
-# REMOVE USER FROM SECRET CHANNEL
+# REMOVE USER FROM SECRET GROUP
 # =========================================================
 
 async def remove_from_secret(
@@ -115,15 +99,6 @@ async def remove_from_secret(
     user_id: int,
     invite_link=None,
 ):
-    """
-    Secret Channel:
-
-    1. Revoke old invite
-    2. Check secret channel membership
-    3. If user is inside, remove using ban + unban
-    4. Clear database access
-    5. Notify user
-    """
 
     bot = application.bot
 
@@ -133,7 +108,7 @@ async def remove_from_secret(
     )
 
     # -----------------------------------------------------
-    # REVOKE OLD INVITE
+    # REVOKE INVITE
     # -----------------------------------------------------
 
     if invite_link:
@@ -159,7 +134,7 @@ async def remove_from_secret(
             )
 
     # -----------------------------------------------------
-    # CHECK SECRET CHANNEL MEMBER
+    # CHECK SECRET GROUP
     # -----------------------------------------------------
 
     secret_status = None
@@ -188,7 +163,7 @@ async def remove_from_secret(
         )
 
     # -----------------------------------------------------
-    # REMOVE ONLY IF DEFINITELY ACTIVE
+    # REMOVE USER
     # -----------------------------------------------------
 
     if secret_status in ACTIVE_STATUSES:
@@ -201,13 +176,12 @@ async def remove_from_secret(
             )
 
             logger.info(
-                "SECRET CHANNEL BAN SUCCESS | user=%s",
+                "SECRET GROUP BAN SUCCESS | user=%s",
                 user_id,
             )
 
-            # -------------------------------------------------
-            # IMMEDIATELY UNBAN
-            # -------------------------------------------------
+            # Immediately unban.
+            # This removes the user but allows future joining.
 
             try:
 
@@ -218,14 +192,14 @@ async def remove_from_secret(
                 )
 
                 logger.info(
-                    "SECRET CHANNEL UNBAN SUCCESS | user=%s",
+                    "SECRET GROUP UNBAN SUCCESS | user=%s",
                     user_id,
                 )
 
             except Exception as e:
 
                 logger.warning(
-                    "SECRET CHANNEL UNBAN ERROR | user=%s | %s",
+                    "SECRET GROUP UNBAN ERROR | user=%s | %s",
                     user_id,
                     e,
                 )
@@ -233,7 +207,7 @@ async def remove_from_secret(
         except Exception as e:
 
             logger.error(
-                "SECRET CHANNEL BAN ERROR | user=%s | %s",
+                "SECRET GROUP BAN ERROR | user=%s | %s",
                 user_id,
                 e,
             )
@@ -241,7 +215,7 @@ async def remove_from_secret(
     else:
 
         logger.info(
-            "USER NOT ACTIVE IN SECRET | user=%s",
+            "USER NOT ACTIVE IN SECRET GROUP | user=%s",
             user_id,
         )
 
@@ -356,9 +330,7 @@ async def check_access(
 
     await query.answer()
 
-    user = query.from_user
-
-    user_id = user.id
+    user_id = query.from_user.id
 
     await add_user(
         user_id,
@@ -392,14 +364,14 @@ async def check_access(
     )
 
     # -----------------------------------------------------
-    # TELEGRAM/API ERROR
+    # API ERROR
     # -----------------------------------------------------
 
     if main1 is None or main2 is None:
 
         await query.message.reply_text(
-            "⚠️ ഇപ്പോൾ Telegram membership check ചെയ്യാൻ കഴിഞ്ഞില്ല.\n\n"
-            "കുറച്ച് സെക്കന്റ് കഴിഞ്ഞ് വീണ്ടും 🔄 Check Again അമർത്തുക."
+            "⚠️ ഇപ്പോൾ membership check ചെയ്യാൻ കഴിഞ്ഞില്ല.\n\n"
+            "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും 🔄 Check Again അമർത്തുക."
         )
 
         return
@@ -460,17 +432,15 @@ async def check_access(
             user_id,
         )
 
-        # Telegram error
         if still_member is None:
 
             await query.message.reply_text(
-                "⚠️ Secret Channel access check ചെയ്യാൻ കഴിഞ്ഞില്ല.\n"
+                "⚠️ Secret Group membership check ചെയ്യാൻ കഴിഞ്ഞില്ല.\n"
                 "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക."
             )
 
             return
 
-        # User is actually inside
         if still_member:
 
             await query.message.reply_text(
@@ -479,7 +449,6 @@ async def check_access(
 
             return
 
-        # DB says active but Telegram says user is not inside
         await update_secret(
             user_id,
             False,
@@ -511,13 +480,16 @@ async def check_access(
         )
 
     # -----------------------------------------------------
-    # REVOKE OLD SAVED INVITE IF EXISTS
+    # REVOKE OLD INVITE
     # -----------------------------------------------------
 
     old_invite = None
 
     if data:
-        old_invite = data.get("invite_link")
+
+        old_invite = data.get(
+            "invite_link"
+        )
 
     if old_invite:
 
@@ -529,7 +501,7 @@ async def check_access(
             )
 
             logger.info(
-                "OLD INVITE REVOKED BEFORE NEW ONE | user=%s",
+                "OLD INVITE REVOKED | user=%s",
                 user_id,
             )
 
@@ -542,7 +514,7 @@ async def check_access(
             )
 
     # -----------------------------------------------------
-    # CREATE SINGLE-USE INVITE
+    # CREATE SINGLE USE INVITE
     # -----------------------------------------------------
 
     try:
@@ -571,8 +543,7 @@ async def check_access(
         )
 
         await query.message.reply_text(
-            "❌ Invite link create ചെയ്യാൻ കഴിഞ്ഞില്ല.\n"
-            "കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക."
+            "❌ Invite link create ചെയ്യാൻ കഴിഞ്ഞില്ല."
         )
 
         return
@@ -585,7 +556,7 @@ async def check_access(
         [
             [
                 InlineKeyboardButton(
-                    "🔐 Join Secret Channel",
+                    "🔐 Join Secret Group",
                     url=invite.invite_link,
                 )
             ]
@@ -599,7 +570,7 @@ async def check_access(
 
 
 # =========================================================
-# SECRET CHANNEL MEMBER UPDATE
+# SECRET GROUP MEMBER UPDATE
 # =========================================================
 
 async def secret_channel_check(
@@ -622,13 +593,13 @@ async def secret_channel_check(
     status = member_update.new_chat_member.status
 
     logger.info(
-        "SECRET CHANNEL UPDATE | user=%s | status=%s",
+        "SECRET GROUP UPDATE | user=%s | status=%s",
         user.id,
         status,
     )
 
     # -----------------------------------------------------
-    # USER JOINED
+    # JOINED
     # -----------------------------------------------------
 
     if status in ACTIVE_STATUSES:
@@ -661,7 +632,7 @@ async def main_group_check(
     chat_id = member_update.chat.id
 
     # -----------------------------------------------------
-    # ONLY MAIN GROUP 1 + MAIN GROUP 2
+    # ONLY MAIN GROUPS
     # -----------------------------------------------------
 
     if chat_id not in (
@@ -736,7 +707,7 @@ async def main_group_check(
         return
 
     # -----------------------------------------------------
-    # STILL MEMBER OF BOTH
+    # STILL IN BOTH
     # -----------------------------------------------------
 
     if main1 and main2:
@@ -749,7 +720,7 @@ async def main_group_check(
         return
 
     # -----------------------------------------------------
-    # GET DATABASE DATA
+    # DATABASE
     # -----------------------------------------------------
 
     data = await get_user(
@@ -780,7 +751,7 @@ async def main_group_check(
     )
 
     # -----------------------------------------------------
-    # REMOVE FROM SECRET
+    # REMOVE
     # -----------------------------------------------------
 
     await remove_from_secret(
@@ -811,10 +782,6 @@ async def auto_remove_checker(
             checked = 0
 
             for user in users:
-
-                # -------------------------------------------------
-                # ONLY SECRET ACTIVE USERS
-                # -------------------------------------------------
 
                 if not user.get("secret"):
                     continue
@@ -853,14 +820,9 @@ async def auto_remove_checker(
                     main2,
                 )
 
-                # =================================================
-                # VERY IMPORTANT
-                # =================================================
-                #
-                # None means Telegram/API/network error.
-                #
-                # DO NOT REMOVE USER.
-                # =================================================
+                # -------------------------------------------------
+                # API ERROR = DO NOTHING
+                # -------------------------------------------------
 
                 if main1 is None or main2 is None:
 
@@ -872,15 +834,14 @@ async def auto_remove_checker(
                     continue
 
                 # -------------------------------------------------
-                # BOTH GROUPS OK
+                # BOTH OK
                 # -------------------------------------------------
 
                 if main1 and main2:
-
                     continue
 
                 # -------------------------------------------------
-                # ACCESS LOST
+                # ONE GROUP LEFT
                 # -------------------------------------------------
 
                 logger.warning(
@@ -914,10 +875,6 @@ async def auto_remove_checker(
                 e,
             )
 
-        # -----------------------------------------------------
-        # CHECK EVERY 30 SECONDS
-        # -----------------------------------------------------
-
         try:
 
             await asyncio.sleep(30)
@@ -945,7 +902,9 @@ async def post_init(
         )
     )
 
-    application.bot_data["auto_checker_task"] = task
+    application.bot_data[
+        "auto_checker_task"
+    ] = task
 
     logger.info(
         "BACKGROUND CHECKER TASK CREATED"
@@ -1003,7 +962,7 @@ app = (
 
 
 # =========================================================
-# START HANDLER
+# HANDLERS
 # =========================================================
 
 app.add_handler(
@@ -1014,10 +973,6 @@ app.add_handler(
 )
 
 
-# =========================================================
-# CHECK ACCESS HANDLER
-# =========================================================
-
 app.add_handler(
     CallbackQueryHandler(
         check_access,
@@ -1026,10 +981,6 @@ app.add_handler(
 )
 
 
-# =========================================================
-# SECRET CHANNEL CHAT MEMBER HANDLER
-# =========================================================
-
 app.add_handler(
     ChatMemberHandler(
         secret_channel_check,
@@ -1037,10 +988,6 @@ app.add_handler(
     )
 )
 
-
-# =========================================================
-# MAIN GROUP CHAT MEMBER HANDLER
-# =========================================================
 
 app.add_handler(
     ChatMemberHandler(
@@ -1066,4 +1013,4 @@ app.run_polling(
         "chat_member",
     ],
     drop_pending_updates=True,
-)
+    )
