@@ -291,6 +291,7 @@ async def secret_channel_check(
 
 
 # =========================
+# =========================
 # AUTO REMOVE CHECKER
 # =========================
 
@@ -304,17 +305,12 @@ async def auto_remove_checker(
 
             users = await all_users()
 
-
             for user in users:
-
 
                 if not user.get("secret"):
                     continue
 
-
                 uid = user["_id"]
-
-
 
                 main1 = await is_member(
                     application.bot,
@@ -322,20 +318,18 @@ async def auto_remove_checker(
                     uid
                 )
 
-
                 main2 = await is_member(
                     application.bot,
                     MAIN_GROUP_2_ID,
                     uid
                 )
 
-
                 if main1 and main2:
                     continue
 
-
-
+                # =========================
                 # REVOKE INVITE
+                # =========================
 
                 if user.get("invite_link"):
 
@@ -346,12 +340,10 @@ async def auto_remove_checker(
                             user["invite_link"]
                         )
 
-
                         print(
                             "Invite Revoked:",
                             uid
                         )
-
 
                     except Exception as e:
 
@@ -360,64 +352,77 @@ async def auto_remove_checker(
                             e
                         )
 
-
-
+                # =========================
                 # REMOVE FROM SECRET CHANNEL
+                # =========================
 
-try:
+                try:
 
-    await application.bot.ban_chat_member(
-        chat_id=SECRET_CHANNEL_ID,
-        user_id=uid
-    )
+                    await application.bot.ban_chat_member(
+                        SECRET_CHANNEL_ID,
+                        uid
+                    )
 
-    print(
-        "Banned from Secret:",
-        uid
-    )
+                    print(
+                        "Banned from Secret:",
+                        uid
+                    )
 
-    await asyncio.sleep(1)
+                    await application.bot.unban_chat_member(
+                        SECRET_CHANNEL_ID,
+                        uid,
+                        only_if_banned=True
+                    )
 
-    await application.bot.unban_chat_member(
-        chat_id=SECRET_CHANNEL_ID,
-        user_id=uid,
-        only_if_banned=True
-    )
+                    print(
+                        "Removed Secret:",
+                        uid
+                    )
 
-    print(
-        "Removed Secret:",
-        uid
-    )
+                except Exception as e:
 
-except Exception as e:
+                    print(
+                        "Remove Error:",
+                        uid,
+                        e
+                    )
 
-    print(
-        "Remove Error:",
-        uid,
-        repr(e)
-    )
+                # =========================
+                # CLEAR ACCESS
+                # =========================
 
+                await update_secret(
+                    uid,
+                    False
+                )
 
-await update_secret(
-    uid,
-    False
-)
+                await clear_invite(
+                    uid
+                )
 
-await clear_invite(
-    uid
-)
+                # =========================
+                # NOTIFY USER
+                # =========================
 
+                try:
 
-try:
+                    await application.bot.send_message(
+                        uid,
+                        REMOVED_TEXT
+                    )
 
-    await application.bot.send_message(
-        uid,
-        REMOVED_TEXT
-    )
+                except Exception:
 
-except:
+                    pass
 
-    pass
+        except Exception as e:
+
+            print(
+                "Checker Error:",
+                e
+            )
+
+        await asyncio.sleep(30)
 
 
 
