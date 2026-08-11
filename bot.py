@@ -62,7 +62,6 @@ async def is_member(
         return False
 
 
-
 # =========================
 # ADMIN CHECK
 # =========================
@@ -70,7 +69,6 @@ async def is_member(
 def is_admin(user_id):
 
     return user_id in ADMIN_IDS
-
 
 
 # =========================
@@ -82,13 +80,11 @@ async def start(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
-    # ADDITION:
-    # /start അടിച്ച ഉടൻ user database-ൽ save ചെയ്യും
+    # User database-ൽ save ചെയ്യും
 
     await add_user(
         update.effective_user.id
     )
-
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -101,12 +97,10 @@ async def start(
         ]
     )
 
-
     await update.message.reply_text(
         START_TEXT,
         reply_markup=keyboard
     )
-
 
 
 # =========================
@@ -124,11 +118,9 @@ async def check_access(
 
     user = query.from_user
 
-
     await add_user(
         user.id
     )
-
 
     main1 = await is_member(
         context.bot,
@@ -136,16 +128,13 @@ async def check_access(
         user.id
     )
 
-
     main2 = await is_member(
         context.bot,
         MAIN_GROUP_2_ID,
         user.id
     )
 
-
     if not main1 or not main2:
-
 
         keyboard = InlineKeyboardMarkup(
             [
@@ -170,7 +159,6 @@ async def check_access(
             ]
         )
 
-
         await query.message.reply_text(
             FAILED_TEXT,
             reply_markup=keyboard
@@ -178,17 +166,13 @@ async def check_access(
 
         return
 
-
-
     data = await get_user(
         user.id
     )
 
-
-        # Already active access
+    # Already active access
 
     if data and data.get("secret"):
-
 
         still_member = await is_member(
             context.bot,
@@ -196,9 +180,7 @@ async def check_access(
             user.id
         )
 
-
         if still_member:
-
 
             await query.message.reply_text(
                 ALREADY_SECRET_TEXT
@@ -206,12 +188,10 @@ async def check_access(
 
             return
 
-
         await update_secret(
             user.id,
             False
         )
-
 
     # =========================
     # REMOVE OLD BAN
@@ -237,7 +217,6 @@ async def check_access(
             e
         )
 
-
     # CREATE NEW SECRET INVITE
 
     invite = await context.bot.create_chat_invite_link(
@@ -245,12 +224,10 @@ async def check_access(
         member_limit=1
     )
 
-
     await save_invite(
         user.id,
         invite.invite_link
     )
-
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -262,7 +239,6 @@ async def check_access(
             ]
         ]
     )
-
 
     await query.message.reply_text(
         SUCCESS_TEXT,
@@ -281,15 +257,12 @@ async def secret_channel_check(
 
     member = update.chat_member
 
-
     if member.chat.id != SECRET_CHANNEL_ID:
         return
-
 
     status = member.new_chat_member.status
 
     user = member.new_chat_member.user
-
 
     if status in (
         ChatMemberStatus.MEMBER,
@@ -302,12 +275,10 @@ async def secret_channel_check(
             True
         )
 
-
         print(
             "Secret Joined:",
             user.id
         )
-
 
 
 # =========================
@@ -324,17 +295,12 @@ async def auto_remove_checker(
 
             users = await all_users()
 
-
             for user in users:
-
 
                 if not user.get("secret"):
                     continue
 
-
                 uid = user["_id"]
-
-
 
                 main1 = await is_member(
                     application.bot,
@@ -342,18 +308,14 @@ async def auto_remove_checker(
                     uid
                 )
 
-
                 main2 = await is_member(
                     application.bot,
                     MAIN_GROUP_2_ID,
                     uid
                 )
 
-
                 if main1 and main2:
                     continue
-
-
 
                 # REVOKE INVITE
 
@@ -366,12 +328,10 @@ async def auto_remove_checker(
                             user["invite_link"]
                         )
 
-
                         print(
                             "Invite Revoked:",
                             uid
                         )
-
 
                     except Exception as e:
 
@@ -379,8 +339,6 @@ async def auto_remove_checker(
                             "Revoke Error:",
                             e
                         )
-
-
 
                 # REMOVE FROM SECRET CHANNEL
 
@@ -391,19 +349,16 @@ async def auto_remove_checker(
                         uid
                     )
 
-
                     await application.bot.unban_chat_member(
                         SECRET_CHANNEL_ID,
                         uid,
                         only_if_banned=True
                     )
 
-
                     print(
                         "Removed Secret:",
                         uid
                     )
-
 
                 except Exception as e:
 
@@ -412,18 +367,14 @@ async def auto_remove_checker(
                         e
                     )
 
-
-
                 await update_secret(
                     uid,
                     False
                 )
 
-
                 await clear_invite(
                     uid
                 )
-
 
                 try:
 
@@ -436,8 +387,6 @@ async def auto_remove_checker(
 
                     pass
 
-
-
         except Exception as e:
 
             print(
@@ -445,11 +394,7 @@ async def auto_remove_checker(
                 e
             )
 
-
-
         await asyncio.sleep(30)
-
-
 
 
 # =========================
@@ -466,9 +411,7 @@ async def users_count(
     ):
         return
 
-
     users = await all_users()
-
 
     await update.message.reply_text(
         f"👥 TOTAL USERS\n\n"
@@ -476,7 +419,6 @@ async def users_count(
         f"👤 Users: {len(users)}\n"
         f"━━━━━━━━━━━━━━"
     )
-
 
 
 # =========================
@@ -493,7 +435,6 @@ async def broadcast(
     ):
         return
 
-
     # Broadcast ചെയ്യേണ്ട message-ന് reply ചെയ്യണം
 
     if not update.message.reply_to_message:
@@ -507,9 +448,7 @@ async def broadcast(
 
         return
 
-
     source = update.message.reply_to_message
-
 
     # =========================
     # ONE URL BUTTON
@@ -517,13 +456,11 @@ async def broadcast(
 
     keyboard = None
 
-
     if context.args:
 
         raw = " ".join(
             context.args
         )
-
 
         if "|" in raw:
 
@@ -532,11 +469,9 @@ async def broadcast(
                 1
             )
 
-
             button_text = button_text.strip()
 
             button_url = button_url.strip()
-
 
             if button_text and button_url:
 
@@ -551,7 +486,6 @@ async def broadcast(
                     ]
                 )
 
-
     # =========================
     # GET USERS
     # =========================
@@ -564,13 +498,11 @@ async def broadcast(
 
     failed = 0
 
-
     status_message = await update.message.reply_text(
         f"📢 BROADCAST STARTED\n\n"
         f"👥 Total Users: {total}\n"
         f"⏳ Sending..."
     )
-
 
     # =========================
     # SEND
@@ -580,10 +512,8 @@ async def broadcast(
 
         user_id = user.get("_id")
 
-
         if not user_id:
             continue
-
 
         try:
 
@@ -594,24 +524,19 @@ async def broadcast(
                 reply_markup=keyboard
             )
 
-
             success += 1
 
-
             await asyncio.sleep(0.05)
-
 
         except Exception as e:
 
             failed += 1
-
 
             print(
                 "Broadcast Error:",
                 user_id,
                 e
             )
-
 
     # =========================
     # RESULT
@@ -653,7 +578,6 @@ async def post_init(
     )
 
 
-
 # =========================
 # APPLICATION
 # =========================
@@ -664,7 +588,6 @@ app = (
     .post_init(post_init)
     .build()
 )
-
 
 
 # =========================
@@ -678,14 +601,12 @@ app.add_handler(
     )
 )
 
-
 app.add_handler(
     CallbackQueryHandler(
         check_access,
         pattern="^check_access$"
     )
 )
-
 
 app.add_handler(
     ChatMemberHandler(
@@ -706,7 +627,6 @@ app.add_handler(
     )
 )
 
-
 app.add_handler(
     CommandHandler(
         "broadcast",
@@ -715,11 +635,9 @@ app.add_handler(
 )
 
 
-
 print(
     "Bot Started"
 )
-
 
 
 app.run_polling(
