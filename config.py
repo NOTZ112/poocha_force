@@ -92,6 +92,7 @@ _admin_ids = os.getenv(
 )
 
 if _admin_ids:
+
     for admin_id in _admin_ids.split(","):
 
         admin_id = admin_id.strip()
@@ -103,6 +104,7 @@ if _admin_ids:
             ADMIN_IDS.append(
                 int(admin_id)
             )
+
         except ValueError:
             pass
 
@@ -182,7 +184,7 @@ BROADCAST_BUTTON_ENABLED = True
 
 AUTO_CHECK_ENABLED = True
 
-# 30 seconds
+# Auto membership check interval
 AUTO_CHECK_INTERVAL = 30
 
 
@@ -190,7 +192,7 @@ AUTO_CHECK_INTERVAL = 30
 # SECRET GROUP INVITE
 # =========================================================
 
-# ഓരോ user-നും ഒരു invite മാത്രം ഉപയോഗിക്കാൻ
+# ഓരോ invite link-ും ഒരു user-ന് മാത്രം ഉപയോഗിക്കാം
 INVITE_MEMBER_LIMIT = 1
 
 
