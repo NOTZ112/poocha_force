@@ -37,11 +37,9 @@ Secret Channel ലഭിക്കാൻ
 ശേഷം Check Access അമർത്തുക.
 """
 
-
 FAILED_TEXT = """
 ❌ നിങ്ങൾ രണ്ട് Main Group-ലും Join ചെയ്തിട്ടില്ല.
 """
-
 
 SUCCESS_TEXT = """
 ✅ Access Approved.
@@ -51,11 +49,9 @@ SUCCESS_TEXT = """
 ⚠️ Link ഒരാൾക്ക് മാത്രം ഉപയോഗിക്കാം.
 """
 
-
 ALREADY_SECRET_TEXT = """
 ✅ നിങ്ങൾ ഇതിനകം Secret Channel അംഗമാണ്.
 """
-
 
 REMOVED_TEXT = """
 🚫 Main Group വിട്ടതിനാൽ
