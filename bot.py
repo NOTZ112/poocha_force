@@ -288,11 +288,11 @@ async def secret_channel_check(
             user.id
         )
 
-=========================
+#=========================
 
-NEW — MAIN CHANNEL LEAVE CHECK
+#NEW — MAIN CHANNEL LEAVE CHECK
 
-=========================
+#=========================
 
 async def main_channel_check(
 update: Update,
@@ -604,11 +604,11 @@ app.add_handler(
     )
 )
 
-=========================
+#=========================
 
-NEW — MAIN CHANNEL HANDLER
+#NEW — MAIN CHANNEL HANDLER
 
-=========================
+#=========================
 
 app.add_handler(
 ChatMemberHandler(
